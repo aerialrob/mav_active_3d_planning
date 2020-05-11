@@ -78,14 +78,14 @@ class EvalData:
     def launch_simulation(self):
         rospy.loginfo("Experiment setup: waiting for unreal MAV simulation to setup...")
         # Wait for unreal simulation to setup
-        if self.startup_timeout > 0.0:
-            try:
-                rospy.wait_for_message("unreal_simulation_ready", String, self.startup_timeout)
-            except rospy.ROSException:
-                self.stop_experiment("Simulation startup failed (timeout after " + str(self.startup_timeout) + "s).")
-                return
-        else:
-            rospy.wait_for_message("unreal_simulation_ready", String)
+        # if self.startup_timeout > 0.0:
+        #     try:
+        #         rospy.wait_for_message("unreal_simulation_ready", String, self.startup_timeout)
+        #     except rospy.ROSException:
+        #         self.stop_experiment("Simulation startup failed (timeout after " + str(self.startup_timeout) + "s).")
+        #         return
+        # else:
+        #     rospy.wait_for_message("unreal_simulation_ready", String)
         rospy.loginfo("Waiting for unreal MAV simulation to setup... done.")
 
         # Launch planner (by service, every planner needs to advertise this service when ready)

@@ -41,7 +41,6 @@ namespace active_3d_planning {
         bool SimulatedSensorEvaluator::computeGain(TrajectorySegment *traj_in) {
             std::vector<Eigen::Vector3d> new_voxels;
             sensor_model_->getVisibleVoxelsFromTrajectory(&new_voxels, *traj_in);
-
             // Check for interesting bounding box
             if (bounding_volume_->is_setup) {
                 new_voxels.erase(std::remove_if(new_voxels.begin(), new_voxels.end(),
@@ -70,7 +69,6 @@ namespace active_3d_planning {
                     previous = previous->parent;
                 }
             }
-
             // Compute gain and store trajectory information
             storeTrajectoryInformation(traj_in, new_voxels);
             computeGainFromVisibleVoxels(traj_in);

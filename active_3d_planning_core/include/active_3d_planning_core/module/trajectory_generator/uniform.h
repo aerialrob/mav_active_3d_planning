@@ -27,9 +27,15 @@ namespace active_3d_planning {
             double p_sampling_rate_; // Hz
             int p_n_segments_;
             double p_ascent_angle_; // Rad, Set 0 for planar
-
+            bool p_goal_oriented_; //bool
+            double p_goal_position_x_;
+            double p_goal_position_y_;
+            double p_goal_position_z_;
             // constants
             double c_yaw_rate_;
+            Eigen::Vector3d goal_pos_;
+            Eigen::Vector3d home_pos_;
+            bool goal_reached_;
         };
 
     } // namespace trajectory_generator

@@ -36,6 +36,10 @@ namespace active_3d_planning {
 
             virtual bool checkParamsValid(std::string *error_message) override;
 
+            // constants
+            double c_field_of_view_x_;
+            double c_field_of_view_y_;
+
         protected:
             // parameters
             double p_ray_length_; // params for camera model
@@ -44,9 +48,7 @@ namespace active_3d_planning {
             int p_resolution_y_;
             double p_sampling_time_; // sample camera poses from segment, use 0 for last only
 
-            // constants
-            double c_field_of_view_x_;
-            double c_field_of_view_y_;
+
 
             // For performance timing of different implementations
             bool p_test_;

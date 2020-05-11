@@ -41,6 +41,19 @@ namespace active_3d_planning {
             return esdf_server_->getEsdfMapPtr()->isObserved(point);
         }
 
+
+        bool VoxbloxMap::isSensed(const Eigen::Vector3d &point) {
+            return esdf_server_->getEsdfMapPtr()->isSensed(point);
+        }
+
+        bool VoxbloxMap::markAsSensed(const Eigen::Vector3d &point) {
+            return esdf_server_->getEsdfMapPtr()->markAsSensed(point);
+        }
+
+        double VoxbloxMap::getPercentageSensed() {
+            return esdf_server_->getEsdfMapPtr()->getPercentageSensed();
+        }
+
         // get occupancy
         unsigned char VoxbloxMap::getVoxelState(const Eigen::Vector3d &point) {
             double distance = 0.0;

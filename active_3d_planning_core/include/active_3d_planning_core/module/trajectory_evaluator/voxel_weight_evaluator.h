@@ -47,8 +47,16 @@ namespace active_3d_planning {
             // i.e. fov/res
             double p_ray_angle_y_;
 
+            bool p_use_z_gain_; //if original gain is used or compute gain as a function of how 
+            //close the trajectory is regaring the voxel
+            double p_desired_voxel_distance_; // desired distance with respect to occupied voxels
+
+            double p_z_margin_;
+            double p_close_voxel_gain_;
+            double p_far_voxel_gain_;
             // constants
             double c_voxel_size_;
+
 
             // methods
             double getVoxelValue(const Eigen::Vector3d &voxel,

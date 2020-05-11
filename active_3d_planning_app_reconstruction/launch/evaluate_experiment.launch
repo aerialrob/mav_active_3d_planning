@@ -1,8 +1,8 @@
 <launch>
   <!-- Data source Data, -->
-  <arg name="target_directory" default="/home/user/Documents/Data" />
-  <arg name="gt_file_path" default="/home/user/Documents/CityBuilding/gt_surface_pcl.ply"/>
-  <arg name="experiment_config" default="CityBuilding.yaml"/>
+  <arg name="target_directory" default="/home/bianca.bendris/a4r_emb" />
+  <arg name="gt_file_path" default="/home/bianca.bendris/a4r_emb/ground_truth/tunnel_surface_translated.ply"/>
+  <arg name="experiment_config" default="tunnel.yaml"/>
   <arg name="method" default="recent"/>
   
   <!-- what to evaluate -->
@@ -16,7 +16,7 @@
   <arg name="clear_voxblox_maps" default="false"/>	<!-- automatic irreversible(!) map removal to free disk space -->
   
   <!-- Eval args -->
-  <arg name="truncation_distance" default="0.0"/>
+  <arg name="truncation_distance" default="0.2"/>
   <arg name="mesh_every_n_steps" default="1"/>
 
 

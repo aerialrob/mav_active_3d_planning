@@ -108,6 +108,7 @@ namespace active_3d_planning {
             EigenTrajectoryPoint goal_point;
             goal_point.position_W = goal_pos_;
             goal_point.setFromYaw((double) rand() / (double) RAND_MAX * 2.0 * M_PI); // random orientation
+            //std::cout << "goal_point " << goal_point.position_W.x() << " " << goal_point.position_W.y() << " " << goal_point.position_W.z();
             if (p_crop_segments_) {
                 new_segment = target->spawnChild();
                 connectPoses(target->trajectory.back(), goal_point, &(new_segment->trajectory),

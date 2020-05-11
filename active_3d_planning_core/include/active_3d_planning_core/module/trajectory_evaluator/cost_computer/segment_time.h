@@ -20,6 +20,8 @@ namespace active_3d_planning {
 
             // params
             bool p_accumulate_; // True: Use total time
+            bool p_altitude_change_; // True: penalize the altitude change
+            bool p_yaw_change_; // True: penalize the yaw change
         };
 
     } // namespace cost_computer

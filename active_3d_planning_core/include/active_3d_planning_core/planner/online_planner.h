@@ -12,6 +12,7 @@
 #include "active_3d_planning_core/planner/planner_I.h"
 #include "active_3d_planning_core/map/map.h"
 #include "active_3d_planning_core/tools/defaults.h"
+#include "active_3d_planning_core/map/tsdf_map.h"
 
 #include <ctime>
 #include <fstream>
@@ -77,6 +78,7 @@ namespace active_3d_planning {
 
         // members
         std::unique_ptr<Map> map_;
+        map::TSDFMap *tsdf_map_;
         std::unique_ptr<TrajectoryGenerator> trajectory_generator_;
         std::unique_ptr<TrajectoryEvaluator> trajectory_evaluator_;
         std::unique_ptr<BackTracker> back_tracker_;

@@ -1,5 +1,5 @@
 # General parameters for the planner node
-replan_pos_threshold: 0.25
+replan_pos_threshold: 0.15
 replan_yaw_threshold: 0.15
 
 max_new_segments: 0
@@ -12,7 +12,8 @@ min_new_value: 0
 verbose: true
 verbose_modules: true
 build_modules_on_init: true
-visualize: true
+visualize_gain: true
+#visualize: true
 highlight_executed_trajectory: true
 
 # Specify a map representation
@@ -29,16 +30,47 @@ system_constraints:
 
 # Specifying a trajectory generator
 trajectory_generator:
-  type: "Uniform"
+  # collision_optimistic: true
+  # bounding_volume_args: "/map_bounding_volume"
+  # clearing_radius: 0.0
+
+  # type: "FeasibleRRTStar"
+  # all_semgents_feasible: true
+  # crop_segments: true
+  # crop_margin: 0.3
+  # crop_min_length: 0.5
+  # max_extension_range: 1.5
+  # maximum_tries: 1000
+  # sampling_rate: 20.0
+  # sample_yaw: false
+
+  # sampling_mode: "semilocal"
+  # semilocal_sampling_count: 20
+  # semilocal_sampling_radius_max: 5
+  # semilocal_sampling_radius_min: 1.5
+
+  # rewire_root: true
+  # rewire_intermediate: true
+  # reinsert_root: true
+  # max_rewire_range: 1.6
+  # max_density_range: 0.0
+  # n_neighbors: 20
+
+  type: "Uniform" 
   collision_optimistic: false
   bounding_volume_args: "/map_bounding_volume"
 
   # Generator Params
   n_segments: 5
   distance: 1.5
-  yaw_angle: 1.2
-  ascent_angle: 0.523
+  yaw_angle: 1.0
+  ascent_angle: 0.2617  # 0.523 30deg
   sampling_rate: 20
+  goal_oriented: true
+  goal_position_x: 0.0
+  goal_position_y: 50.0
+  goal_position_z: 1.5
+
 
   # Expansion site selection policy
   segment_selector:
@@ -54,7 +86,27 @@ trajectory_generator:
 
 # Specifying a trajectory evaluator
 trajectory_evaluator:
-  type: "NaiveEvaluator"
+  type: "VoxelWeightEvaluator"
+  visualize_sensor_view: true
+  accurate_frontiers: true
+  surface_frontiers: true
+  checking_distance: 2.0
+  bounding_volume_args: "/target_bounding_volume"
+  frontier_voxel_weight: 0.0
+  new_voxel_weight: 0.0
+  min_impact_factor: 0.01
+  ray_angle_x: 0.0017239 #0.000917 #0.002454
+  ray_angle_y: 0.0018017 #0.000990 #0.002681
+  use_z_gain: true
+  desired_voxel_distance: 1.5
+  z_margin: 1.75
+  close_voxel_gain: 10.0
+  far_voxel_gain: 1.0
+
+  # type: "VoxelTypeEvaluator"  # NaiveEvaluator GoalOrientedEvaluator
+  # gain_unknown: 0.0
+  # gain_occupied: 0.1
+  # gain_free: 0.0
 
   # Evaluator params and sensor model for simulated sensor evaluators
   clear_from_parents: false
@@ -64,8 +116,8 @@ trajectory_evaluator:
   sensor_model:
     type: "IterativeRayCaster"
     sampling_time: 0.0
-    ray_length: 5.0
-    focal_length: 320.0
+    ray_length: 7.0
+    focal_length: 520
     resolution_x: 640
     resolution_y: 480
     downsampling_factor: 3.0
@@ -73,6 +125,9 @@ trajectory_evaluator:
   # Choose a cost
   cost_computer:
     type: "SegmentTime"
+    penalize_altitude_change: true
+    penalize_yaw_change: false
+    accumulate: false
 
   # How to compute the values
   value_computer:
@@ -80,7 +135,7 @@ trajectory_evaluator:
     following_value_computer:
       type: "LinearValue"
       cost_weight: 1.0
-      gain_weight: 0.1
+      gain_weight: 1.0
 
   # Execution policy for available segments
   next_selector:

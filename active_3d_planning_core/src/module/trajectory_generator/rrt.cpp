@@ -108,6 +108,7 @@ namespace active_3d_planning {
                 }
                 goal_pos = root->trajectory.back().position_W;
                 sampleGoal(&goal_pos);
+                
                 if (p_crop_segments_ || checkTraversable(goal_pos)) {
                     goal_found = true;
                 }
@@ -146,7 +147,6 @@ namespace active_3d_planning {
             if (!adjustGoalPosition(target->trajectory.back().position_W, &goal_pos_)) {
                 return false;
             }
-
             // try creating a trajectory
             EigenTrajectoryPointVector trajectory;
             EigenTrajectoryPoint start_point = target->trajectory.back();
@@ -278,6 +278,7 @@ namespace active_3d_planning {
                     }
                 }
             }
+            //std::cout << "direction 2" << " " << direction(0) << " " << direction(1) << " "<< direction(2)<< "\n";
             *goal_pos_ = start_pos + direction;
             return true;
         }

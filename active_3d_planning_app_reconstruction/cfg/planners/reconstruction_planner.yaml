@@ -37,7 +37,7 @@ trajectory_generator:
   max_extension_range: 1.5
   maximum_tries: 1000
   sampling_rate: 20.0
-  sample_yaw: true
+  sample_yaw: false
 
   sampling_mode: "semilocal"
   semilocal_sampling_count: 10
@@ -59,7 +59,7 @@ trajectory_evaluator:
 
   following_evaluator:
     type: "ContinuousYawPlanningEvaluator"
-    n_directions: 12
+    n_directions: 5
     n_sections_fov: 3
     update_range: 3.0
     update_gain: 0.0
@@ -69,6 +69,7 @@ trajectory_evaluator:
       type: "VoxelWeightEvaluator"
       visualize_sensor_view: true
       accurate_frontiers: true
+      surface_frontiers: true
       checking_distance: 2.0
       bounding_volume_args: "/target_bounding_volume"
       camera_params_ns: "/unreal/unreal_ros_client/camera_params"
@@ -84,7 +85,7 @@ trajectory_evaluator:
         sampling_time: 0.0
         ray_length: 5.0
         focal_length: 320.0
-        resolution_x: 172 # 640-90/172-30/127-22.5 deg fov
+        resolution_x: 640 # 640-90/172-30/127-22.5 deg fov
         resolution_y: 480
         downsampling_factor: 5.0
 
@@ -102,6 +103,6 @@ back_tracker:
   turn_rate: 1.6
   update_rate: 0.5
   sampling_rate: 20.0
-  n_rotations: 0
+  n_rotations: 2
   stack_size: 10
 

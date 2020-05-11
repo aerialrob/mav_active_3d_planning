@@ -17,7 +17,11 @@ namespace active_3d_planning {
             setParam<double>(param_map, "new_voxel_weight", &p_new_voxel_weight_, 0.01);
             setParam<double>(param_map, "ray_angle_x", &p_ray_angle_x_, 0.0025);
             setParam<double>(param_map, "ray_angle_y", &p_ray_angle_y_, 0.0025);
-
+            setParam<bool>(param_map, "use_z_gain", &p_use_z_gain_, false);
+            setParam<double>(param_map, "desired_voxel_distance", &p_desired_voxel_distance_, 1.5);
+            setParam<double>(param_map, "z_margin", &p_z_margin_, 2.0);
+            setParam<double>(param_map, "close_voxel_gain", &p_close_voxel_gain_, 10.0);
+            setParam<double>(param_map, "far_voxel_gain", &p_far_voxel_gain_, 1.0);
             // setup map
             map_ = dynamic_cast<map::TSDFMap *>(&(planner_.getMap()));
             if (!map_) {
@@ -63,11 +67,24 @@ namespace active_3d_planning {
                 double new_weight = std::pow(spanned_angle, 2.0) /
                                     (p_ray_angle_x_ * p_ray_angle_y_) /
                                     std::pow(z, 2.0);
-                double gain =
+                double gain = 0.0;
+                if(!p_use_z_gain_){
+                    gain =
                         new_weight / (new_weight + map_->getVoxelWeight(voxel));
+                }else{
+                    //gain = z / (z - p_desired_voxel_distance_);
+                    if(z <= p_z_margin_  && !map_->isSensed(voxel)){
+                        map_->markAsSensed(voxel);
+                        gain = p_close_voxel_gain_;
+                    }else if(z > p_desired_voxel_distance_){
+                        gain = std::min(z / (z - p_desired_voxel_distance_),p_far_voxel_gain_);
+                    }
+                }
+                
                 if (gain > p_min_impact_factor_) {
                     return gain;
                 }
+                
             } else if (voxel_state == map::TSDFMap::UNKNOWN) {
                 // Unobserved voxels
                 if (p_frontier_voxel_weight_ > 0.0) {

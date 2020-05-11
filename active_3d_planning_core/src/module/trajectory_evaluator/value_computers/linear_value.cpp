@@ -31,6 +31,7 @@ namespace active_3d_planning {
                 }
             }
             traj_in->value = gain_weight_ * gain - cost_weight_ * cost;
+            //std::cout << "value " << traj_in->value  << " gain " << gain << " cost " << cost << "\n";
             return true;
         }
 

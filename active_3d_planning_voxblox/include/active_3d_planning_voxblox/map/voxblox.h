@@ -43,6 +43,15 @@ namespace active_3d_planning {
             // get the maximum allowed weight (return 0 if using uncapped weights)
             virtual double getMaximumWeight() override;
 
+            // check whether point is sensed
+            virtual bool isSensed(const Eigen::Vector3d &point);
+
+            // mark the voxel corresponding to this point as sensed in the esdf map
+            virtual bool markAsSensed(const Eigen::Vector3d &point);
+
+            // get the percentage of the voxblox mesh which have been sensed
+            virtual double getPercentageSensed();
+            
             // accessor to the server for specialized planners
             voxblox::EsdfServer &getESDFServer();
 

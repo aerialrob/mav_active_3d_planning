@@ -58,6 +58,7 @@ namespace active_3d_planning {
         setParam<std::string>(param_map, "map_args", &args,
                               param_ns + "/map");
         map_ = getFactory().createModule<Map>(args, *this, verbose_modules);
+        tsdf_map_ = dynamic_cast<map::TSDFMap *>(&(getMap()));
         setParam<std::string>(param_map, "trajectory_generator_args", &args,
                               param_ns + "/trajectory_generator");
         trajectory_generator_ = getFactory().createModule<TrajectoryGenerator>(
@@ -234,7 +235,7 @@ namespace active_3d_planning {
                 ss << "Replanning!\n(" << std::setprecision(3) << perf_runtime << "s elapsed, "
                    << num_trajectories - info_count_ + 1 << " new, " << num_trajectories << " total, "
                    << info_killed_next_ + 1 << " killed by root change, " << info_killed_update_
-                   << " killed while updating)";
+                   << " killed while updating)."; 
                 printInfo(ss.str());
             }
         }
@@ -246,6 +247,11 @@ namespace active_3d_planning {
         // Select best next trajectory and update root
         int next_segment = trajectory_evaluator_->selectNextBest(current_segment_.get());
         current_segment_ = std::move(current_segment_->children[next_segment]);
+        std::stringstream segment_info;
+        segment_info << "Next best segment: gain " << current_segment_->gain << " cost: "
+                     << current_segment_->cost << " value: " << current_segment_->value
+                     << " percentage sensed: " << tsdf_map_->getPercentageSensed();
+        printInfo(segment_info.str());
         current_segment_->parent = nullptr;
         current_segment_->gain = 0.0;
         current_segment_->cost = 0.0;
