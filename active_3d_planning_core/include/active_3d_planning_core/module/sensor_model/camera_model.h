@@ -20,7 +20,8 @@ namespace active_3d_planning {
             // in x-direction
             virtual bool getVisibleVoxels(std::vector<Eigen::Vector3d> *result,
                                           const Eigen::Vector3d &position,
-                                          const Eigen::Quaterniond &orientation) = 0;
+                                          const Eigen::Quaterniond &orientation,
+                                          int sensor_id = 0) = 0;
 
             // Return the voxel centers of all visible voxels, sampling camera poses from
             // a trajectory segment
@@ -40,6 +41,9 @@ namespace active_3d_planning {
             double c_field_of_view_x_;
             double c_field_of_view_y_;
 
+            std::vector<double> c_field_of_view_x_list;
+            std::vector<double> c_field_of_view_y_list;
+
         protected:
             // parameters
             double p_ray_length_; // params for camera model
@@ -48,7 +52,10 @@ namespace active_3d_planning {
             int p_resolution_y_;
             double p_sampling_time_; // sample camera poses from segment, use 0 for last only
 
-
+            int p_num_sensors_;
+            std::vector<double> p_focal_length_list_;
+            std::vector<int> p_resolution_x_list_;
+            std::vector<int> p_resolution_y_list_;
 
             // For performance timing of different implementations
             bool p_test_;
@@ -61,7 +68,8 @@ namespace active_3d_planning {
 
             void visualizeSingleView(VisualizationMarkers *markers,
                                      const Eigen::Vector3d &position,
-                                     const Eigen::Quaterniond &orientation);
+                                     const Eigen::Quaterniond &orientation,
+                                     int id_sensor = 0);
 
             // get the direction vector for camera pointing in x_direction at pixel with
             // relative x, y position [0, 1]

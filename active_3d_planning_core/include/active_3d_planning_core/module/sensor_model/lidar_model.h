@@ -20,7 +20,8 @@ namespace active_3d_planning {
             // in x-direction
             virtual bool getVisibleVoxels(std::vector<Eigen::Vector3d> *result,
                                           const Eigen::Vector3d &position,
-                                          const Eigen::Quaterniond &orientation) = 0;
+                                          const Eigen::Quaterniond &orientation,
+                                          int sensor_id = 0 ) = 0;
 
             // Return the voxel centers of all visible voxels, sampling camera poses from
             // a trajectory segment

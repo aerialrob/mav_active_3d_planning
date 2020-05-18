@@ -70,7 +70,8 @@ bool Uniform::expandSegment(TrajectorySegment *target,
             double current_yaw = 0;
             if (p_goal_oriented_)
             {
-                double dist_goal = (goal_pos_ - current_pos).norm(); 
+                Eigen::Vector2d dist{goal_pos_(0) - current_pos(0), goal_pos_(1) - current_pos(1)};
+                double dist_goal = dist.norm(); 
 
                 if(dist_goal <= 1.0 && !goal_reached_){
                     goal_reached_ = true;

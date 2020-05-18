@@ -34,10 +34,13 @@ namespace active_3d_planning {
     protected:
         // sensor model is configured to use voxel maps
         map::OccupancyMap *map_;
-
+        
         // mounting transform from body (pose) to sensor , in body frame
         Eigen::Vector3d mounting_translation_; // x,y,z [m]
         Eigen::Quaterniond mounting_rotation_; // x,y,z,w quaternion
+        std::vector<Eigen::Vector3d>  mounting_translation_list_;
+        std::vector<Eigen::Quaterniond>  mounting_rotation_list_;
+        int p_num_sensors_;
     };
 
 } // namespace active_3d_planning

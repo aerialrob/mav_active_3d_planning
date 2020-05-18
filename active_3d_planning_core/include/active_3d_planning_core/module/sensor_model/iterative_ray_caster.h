@@ -17,7 +17,8 @@ namespace active_3d_planning {
             // Override virtual functions
             bool getVisibleVoxels(std::vector<Eigen::Vector3d> *result,
                                   const Eigen::Vector3d &position,
-                                  const Eigen::Quaterniond &orientation) override;
+                                  const Eigen::Quaterniond &orientation, 
+                                  int sensor_id = 0) override;
 
             void setupFromParamMap(Module::ParamMap *param_map) override;
 
@@ -37,6 +38,11 @@ namespace active_3d_planning {
             std::vector<int>
                     c_split_widths_; // number of max distance rays that are covered per split
 
+            std::vector<int> c_res_x_list_;
+            std::vector<int> c_res_y_list_;
+            std::vector<int> c_n_sections_list_;
+            std::vector<std::vector<double>> c_split_distances_list_;
+            std::vector<std::vector<int>> c_split_widths_list_;
             // variables
             Eigen::ArrayXXi ray_table_;
 

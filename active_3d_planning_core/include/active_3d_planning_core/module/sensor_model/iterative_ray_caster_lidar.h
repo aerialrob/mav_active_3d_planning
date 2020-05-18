@@ -17,7 +17,8 @@ namespace active_3d_planning {
             // Override virtual functions
             bool getVisibleVoxels(std::vector<Eigen::Vector3d> *result,
                                   const Eigen::Vector3d &position,
-                                  const Eigen::Quaterniond &orientation) override;
+                                  const Eigen::Quaterniond &orientation,
+                                  int sensor_id = 0 ) override;
 
             void setupFromParamMap(Module::ParamMap *param_map) override;
 
