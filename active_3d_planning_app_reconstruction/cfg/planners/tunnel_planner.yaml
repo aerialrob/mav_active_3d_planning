@@ -12,8 +12,8 @@ min_new_value: 0
 verbose: true
 verbose_modules: true
 build_modules_on_init: true
-visualize_gain: true
-visualize: true
+visualize_gain: false
+visualize: false
 highlight_executed_trajectory: true
 
 # Specify a map representation
@@ -31,73 +31,49 @@ system_constraints:
 # Specifying a trajectory generator
 trajectory_generator:
   collision_optimistic: false
-  bounding_volume_args: "/map_bounding_volume"
-  clearing_radius: 0.0
-
-  # type: "RandomLinear"
-  # min_distance: 1.0
-  # max_distance: 5.0
-  # sampling_rate: 20.0
-  # n_segments: 100.0
-  # max_tries: 20
-  # planar: false
-  # sample_yaw: true
-
-
-  # type: "FeasibleRRTStar"
+  bounding_volume_args: "/local_bounding_volume"
+  clearing_radius: 1.0
+  # type: "RRTStar"
   # all_semgents_feasible: true
-  # crop_segments: true
+  # crop_segments: false
   # crop_margin: 0.3
   # crop_min_length: 0.5
   # max_extension_range: 1.5
-  # maximum_tries: 1000
+  # maximum_tries: 100
   # sampling_rate: 20.0
   # sample_yaw: false
-
-  # sampling_mode: "semilocal"
+  # sampling_mode: "uniform"
   # semilocal_sampling_count: 10
-  # semilocal_sampling_radius_max: 5
+  # semilocal_sampling_radius_max: 10
   # semilocal_sampling_radius_min: 1.5
-
-  # rewire_root: true
+  # rewire_root: false
   # rewire_intermediate: true
-  # reinsert_root: true
+  # reinsert_root: false
   # max_rewire_range: 1.6
   # max_density_range: 0.0
   # n_neighbors: 20
 
-  type: "Uniform" 
-  collision_optimistic: false
-  bounding_volume_args: "/map_bounding_volume"
-
-  # Generator Params
-  n_segments: 5
-  distance: 2.0
-  yaw_angle: 1.0
-  ascent_angle: 0.2617  # 0.523 30deg
-  sampling_rate: 20
-  goal_oriented: true
-  goal_position_x: 0.0
-  goal_position_y: 50.0
-  goal_position_z: 1.5
-
-
-  # Expansion site selection policy
-  segment_selector:
-    type: "GreedySelector" #"RandomWeighted"
-    # revisit: false
-    # factor: 2.0
-    # leaf_probability: 1.0
-    # uniform_probability: 0.2
+  type: "InformedRRTStar"
+  num_samples: 2
+  sampling_rate: 20.0
+  max_sample_dist: 2.0
+  min_sample_dist: 0.5
+  n_neighbors: 1
 
   # Generator Update step
   generator_updater:
-    type: "RecheckCollision"
+   type: "RecheckCollision"
 
-# Specifying a trajectory evaluator
+  # segment_selector:
+  #   type: "RandomWeighted"
+  #   revisit: false
+  #   factor: 2.0
+  #   leaf_probability: 1.0
+  #   uniform_probability: 0.2
+
 trajectory_evaluator:
   type: "VoxelWeightEvaluator"
-  visualize_sensor_view: true
+  visualize_sensor_view: false
   accurate_frontiers: true
   surface_frontiers: true
   checking_distance: 2.0
@@ -112,20 +88,16 @@ trajectory_evaluator:
   z_margin: 2.0
   close_voxel_gain: 10
   far_voxel_gain: 0
-
-  # type: "VoxelTypeEvaluator"  # NaiveEvaluator GoalOrientedEvaluator
-  # gain_unknown: 0.0
-  # gain_occupied: 0.1
-  # gain_free: 0.0
-
+  #Expansion site selection policy
+  
   # Evaluator params and sensor model for simulated sensor evaluators
   clear_from_parents: false
   camera_params_ns: "/unreal/unreal_ros_client/camera_params"
-  visualize_sensor_view: true
+  visualize_sensor_view: false
   bounding_volume_args: "/target_bounding_volume"
   sensor_model:
     type: "IterativeRayCaster"
-    sampling_time: 0.0
+    sampling_time: 0.5
     ray_length: 3.0
     num_sensors: 3
     downsampling_factor: 1
@@ -162,27 +134,23 @@ trajectory_evaluator:
     penalize_altitude_change: true
     penalize_yaw_change: false
     accumulate: false
-
-  # How to compute the values
+    # How to compute the values
   value_computer:
     type: "AccumulateValue"
     following_value_computer:
       type: "LinearValue"
-      cost_weight: 1.0
-      gain_weight: 1.0
-
+      cost_weight: 1
+      gain_weight: 0.1
   # Execution policy for available segments
   next_selector:
     type: "SubsequentBest"
-
   # Evaluator Update step
   evaluator_updater:
     type: "UpdateAll"
-    update_gain: false
-    update_cost: false
+    update_gain: true
+    update_cost: true
     update_value: true
-
-# Specify a backtracker if the planner gets stuck
+# Secify a backtracker if the planner gets stuck
 back_tracker:
   type: "RotateReverse"
   turn_rate: 1.6

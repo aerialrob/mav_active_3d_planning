@@ -55,6 +55,7 @@ namespace active_3d_planning {
             virtual ~SimulatedSensorInfo() {}
 
             std::vector<Eigen::Vector3d> visible_voxels;
+            std::map<int, double> visible_voxels_gain;
         };
 
     } // namespace trajectory_evaluator

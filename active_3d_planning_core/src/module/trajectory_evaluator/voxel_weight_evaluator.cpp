@@ -57,10 +57,38 @@ namespace active_3d_planning
                 reinterpret_cast<SimulatedSensorInfo *>(traj_in->info.get());
 
             // just assume we take a single image from the last trajectory point here...
-            Eigen::Vector3d origin = traj_in->trajectory.back().position_W;
+            Eigen::Vector3d origin;
             for (int i = 0; i < info->visible_voxels.size(); ++i)
             {
-                traj_in->gain += getVoxelValue(info->visible_voxels[i], origin);
+                double voxel_gain;
+                double p_sampling_time_ = 0.2;
+                int64_t sampling_time_ns = static_cast<int64_t>(p_sampling_time_ * 1.0e9);
+                if (sampling_time_ns >= traj_in->trajectory.back().time_from_start_ns)
+                {
+                    // no points within one sampling interval: add last point
+                   origin = traj_in->trajectory.back().position_W;
+                   voxel_gain = getVoxelValue(info->visible_voxels[i], origin);
+                }
+                else
+                {
+                    // sample the trajectory according to the sampling rate
+                    int64_t current_time = sampling_time_ns;
+                    for (int u = 0; u < traj_in->trajectory.size(); ++u)
+                    {
+                        if (traj_in->trajectory[u].time_from_start_ns >= current_time)
+                        {
+                            current_time += sampling_time_ns;
+                            origin = traj_in->trajectory[u].position_W;
+                            voxel_gain = getVoxelValue(info->visible_voxels[i], origin);
+                            if(voxel_gain == p_close_voxel_gain_){
+                                break;
+                            }
+                        }
+                    }
+                }
+               
+                info->visible_voxels_gain.insert(std::make_pair(i,voxel_gain));
+                traj_in->gain += voxel_gain;
             }
             return true;
         }
@@ -141,7 +169,8 @@ namespace active_3d_planning
                 reinterpret_cast<SimulatedSensorInfo *>(trajectory.info.get());
             for (int i = 0; i < info->visible_voxels.size(); ++i)
             {
-                value = getVoxelValue(info->visible_voxels[i], origin);
+                value = info->visible_voxels_gain[i];
+                //value = getVoxelValue(info->visible_voxels[i], origin);
                 if (value > 0.0)
                 {
                     marker.points.push_back(info->visible_voxels[i]);
