@@ -4,14 +4,17 @@
 
 #include <algorithm>
 
-namespace active_3d_planning {
-    namespace trajectory_evaluator {
+namespace active_3d_planning
+{
+    namespace trajectory_evaluator
+    {
 
-// SimulatedSensorEvaluator (base class)
+        // SimulatedSensorEvaluator (base class)
         SimulatedSensorEvaluator::SimulatedSensorEvaluator(PlannerI &planner)
-                : TrajectoryEvaluator(planner) {}
+            : TrajectoryEvaluator(planner) {}
 
-        void SimulatedSensorEvaluator::setupFromParamMap(Module::ParamMap *param_map) {
+        void SimulatedSensorEvaluator::setupFromParamMap(Module::ParamMap *param_map)
+        {
             setParam<bool>(param_map, "clear_from_parents", &p_clear_from_parents_,
                            false);
             setParam<bool>(param_map, "visualize_sensor_view", &p_visualize_sensor_view_,
@@ -19,7 +22,8 @@ namespace active_3d_planning {
 
             // setup map
             map_ = dynamic_cast<map::OccupancyMap *>(&(planner_.getMap()));
-            if (!map_) {
+            if (!map_)
+            {
                 planner_.printError("'SimulatedSensorEvaluator' requires a map of type 'OccupancyMap'!");
             }
 
@@ -32,40 +36,52 @@ namespace active_3d_planning {
             setParam<std::string>(param_map, "sensor_model_args", &args,
                                   param_ns + "/sensor_model");
             sensor_model_ = planner_.getFactory().createModule<SensorModel>(
-                    args, planner_, verbose_modules_);
+                args, planner_, verbose_modules_);
 
             // setup parent
             TrajectoryEvaluator::setupFromParamMap(param_map);
         }
 
-        bool SimulatedSensorEvaluator::computeGain(TrajectorySegment *traj_in) {
+        bool SimulatedSensorEvaluator::computeGain(TrajectorySegment *traj_in)
+        {
+
+            // Do not compute gain if this has been already computed during the expansion part
+            if (traj_in->tg_visited)
+            {
+                return true;
+            }
+
             std::vector<Eigen::Vector3d> new_voxels;
+            //std::cout << "Simulated sensor compute gain \n";
             sensor_model_->getVisibleVoxelsFromTrajectory(&new_voxels, *traj_in);
             // Check for interesting bounding box
-            if (bounding_volume_->is_setup) {
+            if (bounding_volume_->is_setup)
+            {
                 new_voxels.erase(std::remove_if(new_voxels.begin(), new_voxels.end(),
                                                 [this](const Eigen::Vector3d &voxel) {
                                                     return (
-                                                            !bounding_volume_->contains(voxel));
+                                                        !bounding_volume_->contains(voxel));
                                                 }),
                                  new_voxels.end());
             }
 
             // Remove voxels previously seen by parent (this is quite expensive)
-            if (p_clear_from_parents_) {
+            if (p_clear_from_parents_)
+            {
                 TrajectorySegment *previous = traj_in->parent;
-                while (previous) {
+                while (previous)
+                {
                     std::vector<Eigen::Vector3d> old_voxels =
-                            reinterpret_cast<SimulatedSensorInfo *>(previous->info.get())
-                                    ->visible_voxels;
+                        reinterpret_cast<SimulatedSensorInfo *>(previous->info.get())
+                            ->visible_voxels;
                     new_voxels.erase(
-                            std::remove_if(new_voxels.begin(), new_voxels.end(),
-                                           [&old_voxels](const Eigen::Vector3d &voxel) {
-                                               auto it = std::find(old_voxels.begin(),
-                                                                   old_voxels.end(), voxel);
-                                               return (it != old_voxels.end());
-                                           }),
-                            new_voxels.end());
+                        std::remove_if(new_voxels.begin(), new_voxels.end(),
+                                       [&old_voxels](const Eigen::Vector3d &voxel) {
+                                           auto it = std::find(old_voxels.begin(),
+                                                               old_voxels.end(), voxel);
+                                           return (it != old_voxels.end());
+                                       }),
+                        new_voxels.end());
                     previous = previous->parent;
                 }
             }
@@ -76,18 +92,21 @@ namespace active_3d_planning {
         }
 
         bool SimulatedSensorEvaluator::storeTrajectoryInformation(
-                TrajectorySegment *traj_in,
-                const std::vector<Eigen::Vector3d> &new_voxels) {
+            TrajectorySegment *traj_in,
+            const std::vector<Eigen::Vector3d> &new_voxels)
+        {
             SimulatedSensorInfo *new_info = new SimulatedSensorInfo();
             new_info->visible_voxels.assign(new_voxels.begin(), new_voxels.end());
             traj_in->info.reset(new_info);
             return true;
         }
 
-// Base Visualization: just display all visible voxels
+        // Base Visualization: just display all visible voxels
         void SimulatedSensorEvaluator::visualizeTrajectoryValue(
-                VisualizationMarkers *markers, const TrajectorySegment &trajectory) {
-            if (!trajectory.info) {
+            VisualizationMarkers *markers, const TrajectorySegment &trajectory)
+        {
+            if (!trajectory.info)
+            {
                 return;
             }
             // Default implementation displays all visible voxels
@@ -104,13 +123,15 @@ namespace active_3d_planning {
 
             // points
             SimulatedSensorInfo *info =
-                    reinterpret_cast<SimulatedSensorInfo *>(trajectory.info.get());
-            for (int i = 0; i < info->visible_voxels.size(); ++i) {
+                reinterpret_cast<SimulatedSensorInfo *>(trajectory.info.get());
+            for (int i = 0; i < info->visible_voxels.size(); ++i)
+            {
                 marker.points.push_back(info->visible_voxels[i]);
             }
             markers->addMarker(marker);
 
-            if (p_visualize_sensor_view_) {
+            if (p_visualize_sensor_view_)
+            {
                 sensor_model_->visualizeSensorView(markers, trajectory);
             }
         }
