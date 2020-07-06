@@ -3,15 +3,20 @@
 
 #include "active_3d_planning_core/module/trajectory_evaluator.h"
 
-namespace active_3d_planning {
-    namespace cost_computer {
+namespace active_3d_planning
+{
+    namespace cost_computer
+    {
 
-        class NoCost : public CostComputer {
+        class NoCost : public CostComputer
+        {
         public:
             explicit NoCost(PlannerI &planner);
 
             // override virtual functions
-            bool computeCost(TrajectorySegment *traj_in) override;
+            bool computeCost(TrajectorySegment *traj_in, Eigen::Vector3d *current_position ) override;
+
+            bool setGlobalGoal(Eigen::Vector3d *goal) override;
 
         protected:
             void setupFromParamMap(Module::ParamMap *param_map) override;

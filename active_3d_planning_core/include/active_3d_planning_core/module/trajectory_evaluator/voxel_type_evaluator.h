@@ -4,12 +4,15 @@
 #include "active_3d_planning_core/module/trajectory_evaluator/simulated_sensor_evaluator.h"
 #include "active_3d_planning_core/map/occupancy_map.h"
 
-namespace active_3d_planning {
-    namespace trajectory_evaluator {
+namespace active_3d_planning
+{
+    namespace trajectory_evaluator
+    {
 
-// VoxelType assigns a constant value to every kind of visible value
-// (unobserved/free/occupied, inside/outside target bounding volume)
-        class VoxelTypeEvaluator : public SimulatedSensorEvaluator {
+        // VoxelType assigns a constant value to every kind of visible value
+        // (unobserved/free/occupied, inside/outside target bounding volume)
+        class VoxelTypeEvaluator : public SimulatedSensorEvaluator
+        {
         public:
             explicit VoxelTypeEvaluator(PlannerI &planner);
 

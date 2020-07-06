@@ -1,12 +1,13 @@
 <launch>
-  <arg name="data_directory" default="/home/lukas/Documents/MT/RAL20/Data/Exploration" />
-  <arg name="dir" default="R4_weight/bags" />
+  <arg name="data_directory" default="/home/bianca.bendris/Documents/A4R/Simulation_Experiments/Data/2" />
+  <arg name="dir" default="20200623_180141/" />
   <arg name="rate" default="5"/>
-
-
+  <arg name="mav_name" default="firefly"/>
+  <arg name="visualize" default="true"/>
 
 	<!-- Play Rosbag and RVIZ (visualization) -->
-	<node pkg="rosbag" type="play" name="player" output="screen" args="-r $(arg rate) $(arg data_directory)/$(arg dir)/visualization.bag"/>
+    <node pkg="rosbag" type="play" name="player" output="screen" args="-r $(arg rate) $(arg data_directory)/$(arg dir)/visualization.bag"/>
 
-	<node type="rviz" name="rviz_replay" pkg="rviz" args="-d $(find mav_active_3d_planning)/cfg/experiments/experiment_visualization.rviz"/>
+  <!-- RVIZ Visualization -->
+  <node type="rviz" name="rviz_experiment" pkg="rviz" args="-d $(find active_3d_planning_app_reconstruction)/cfg/experiments/experiment_visualization.rviz" if="$(arg visualize)"/>
 </launch>

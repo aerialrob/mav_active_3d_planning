@@ -14,6 +14,7 @@
 #include <random>
 #include <vector>
 
+#define M_PI 3.14159265358979323846 /* pi */
 namespace active_3d_planning
 {
     namespace trajectory_generator
@@ -35,11 +36,21 @@ namespace active_3d_planning
             setParam<double>(param_map, "goal_y", &p_goal_y_, 0.0);
             setParam<double>(param_map, "goal_z", &p_goal_z_, 0.0);
             setParam<double>(param_map, "prob_divisions", &p_prob_divisions_, 10.0);
+            setParam<bool>(param_map, "rewire", &p_rewire_, false);
+            setParam<double>(param_map, "yaw_range", &p_yaw_range_, M_PI);
+            setParam<bool>(param_map, "rewire_update", &p_rewire_update_, false);
+            setParam<double>(param_map, "prob_weight", &p_prob_weight_, false);
+            setParam<bool>(param_map, "rewire_root", &p_rewire_root_, false);
+            setParam<bool>(param_map, "reinsert_root", &p_reinsert_root_, false);
+            setParam<double>(param_map, "tunnel_width", &p_tunnel_width_, 10.0);
+            setParam<bool>(param_map, "apply_prob_dist", &p_apply_prob_dist_, false);
+            setParam<bool>(param_map, "find_wall_direction", &p_find_wall_direction_, false);
 
             previous_root_ = nullptr;
-            home_pose_ = {0.0, 10.0, 1.5};
-            current_goal_ = {p_goal_x_, p_goal_y_, p_goal_z_};
-            // setup parent
+            wall_direction_ = 0;
+            last_wall_direction_ = 1;
+            wall_detected_ = false;
+
             TrajectoryGenerator::setupFromParamMap(param_map);
             initializeDistribution();
         }
@@ -51,19 +62,32 @@ namespace active_3d_planning
             {
                 resetTree(root);
                 previous_root_ = root;
+                if (p_rewire_update_)
+                {
+                    rewireIntermediate(root);
+                }
             }
 
             Eigen::Vector3d sample;
-            Eigen::Vector3d current_position = root->trajectory.back().position_W;
+            double sampled_yaw;
+            double current_yaw = root->trajectory.back().getYaw();
             bool sample_found = false;
             int counter = 0;
             std::size_t ret_index;
+            setCurrentPosition(root);
+            updateDistance2Goal();
+            if (p_find_wall_direction_)
+            {
+                findWallDirection();
+            }
             while (!sample_found && counter <= p_maximum_tries_)
             {
-                getSample(&sample, &current_position);
-                //std::cout << "Got sample " << sample << "\n";
+                //Eigen::Vector3d *sampled_position, double *sampled_yaw, Eigen::Vector3d *current_pose_, double *current_yaw
+                getSample(&sample, &sampled_yaw, &current_yaw);
+                //std::cout << "Got sample " << sample << " traversable " << checkTraversable(sample) << "\n";
                 if (checkTraversable(sample))
                 {
+                    //std::cout << "Traversable" << "\n";
                     double query_pt[3] = {sample.x(), sample.y(), sample.z()};
                     double out_dist_sqr;
                     nanoflann::KNNResultSet<double> resultSet(1);
@@ -71,9 +95,10 @@ namespace active_3d_planning
                     if (!kdtree_->findNeighbors(resultSet, query_pt,
                                                 nanoflann::SearchParams(10)))
                     {
+                        std::cout << "No neighbour\n";
                         continue;
                     }
-                    if (out_dist_sqr <= p_max_sample_dist_ * p_max_sample_dist_ && out_dist_sqr >= p_min_sample_dist_ * p_min_sample_dist_)
+                    if ((out_dist_sqr <= p_max_sample_dist_ * p_max_sample_dist_) && (out_dist_sqr >= p_min_sample_dist_ * p_min_sample_dist_))
                     {
                         sample_found = true;
                     }
@@ -81,28 +106,8 @@ namespace active_3d_planning
                 counter++;
             }
 
-            //double sample_dist = (current_goal_ - sample).norm();
-            //double current_dist = (current_goal_ - current_position).norm();
-            Eigen::Vector2d sample_distance2d{current_goal_(0) - sample(0), current_goal_(1) - sample(1)};
+            Eigen::Vector2d sample_distance2d{global_goal_(0) - sample(0), global_goal_(1) - sample(1)};
             double sample_dist = sample_distance2d.norm();
-            Eigen::Vector2d distance2d{current_goal_(0) - current_position(0), current_goal_(1) - current_position(1)};
-            double current_dist = distance2d.norm();
-            //std::cout << "Current dist new goal is " << current_dist << "\n";
-            if (current_dist <= 1.0)
-            {
-                // /goal_reached_ = true;
-                current_goal_ = home_pose_;
-                //std::cout << "GOAL REACHED , new goal is " << current_goal_ << "\n";
-                sample_dist = (current_goal_ - sample).norm();
-                current_dist = (current_goal_ - current_position).norm();
-                initializeDistribution();
-            }
-
-            if (sample_dist > current_dist)
-            {
-                updateDistribution(&sample, 1, false);
-                //std::cout << "Updated weights " << weights_y_[0] << " " << weights_y_[1] << " " << weights_y_[2] << " " << weights_y_[3] << " " << weights_y_[4] << " " << weights_y_[5] << " " << weights_y_[6] << " " << weights_y_[7] << " " << weights_y_[8] << " " << weights_y_[9] << "\n";
-            }
 
             if (!sample_found)
             {
@@ -113,13 +118,100 @@ namespace active_3d_planning
             // Lower probability of sampling behind the current position
 
             connecting_sample_ = sample;
+            connecting_yaw_ = sampled_yaw;
             *result = tree_data_.data[ret_index];
             return true;
+        }
+
+        void InformedRRTStar::setCurrentPosition(TrajectorySegment *root)
+        {
+            current_pose_ = root->trajectory.back().position_W;
+        }
+        void InformedRRTStar::updateDistance2Goal()
+        {
+            goal_distance_ = (global_goal_ - current_pose_).norm();
+            if (new_global_goal_)
+            {
+                // If a new goal is given, initialize the prob distribution as the direction might have changed
+                initializeDistribution();
+            }
+        }
+
+        bool InformedRRTStar::findWallDirection()
+        {
+
+            if (!wall_detected_)
+            {
+                planner_.getTrajectoryEvaluator().initializeObservedVolume();
+            }
+
+            if (wall_direction_ == 0)
+            {
+                if (checkValidLocalVolume() && (observed_bounding_volume_[0][1] - observed_bounding_volume_[0][0] <= p_tunnel_width_))
+                {
+                    wall_detected_ = true;
+                    return wall_detected_;
+                }
+                else if (checkValidLocalVolume() && (observed_bounding_volume_[1][1] - observed_bounding_volume_[1][0] <= p_tunnel_width_))
+                {
+                    wall_detected_ = true;
+                    wall_direction_ = 1;
+                    return wall_detected_;
+                }
+                else
+                {
+                    wall_detected_ = false;
+                    return wall_detected_;
+                }
+            }
+            else
+            {
+                if (checkValidLocalVolume() && (observed_bounding_volume_[1][1] - observed_bounding_volume_[1][0] <= p_tunnel_width_))
+                {
+                    wall_detected_ = true;
+                    return wall_detected_;
+                }
+                else if (checkValidLocalVolume() && (observed_bounding_volume_[0][1] - observed_bounding_volume_[0][0] <= p_tunnel_width_))
+                {
+                    wall_detected_ = true;
+                    wall_direction_ = 0;
+                    return wall_detected_;
+                }
+                else
+                {
+                    wall_detected_ = false;
+                    return wall_detected_;
+                }
+            }
+        }
+
+        bool InformedRRTStar::checkValidLocalVolume()
+        {
+            bool valid_x = false;
+            bool valid_y = false;
+            if ((current_pose_[0] > observed_bounding_volume_[0][0]) && (current_pose_[0] < observed_bounding_volume_[0][1]) && (observed_bounding_volume_[0][1] - observed_bounding_volume_[0][0] > 1e-4))
+            {
+                valid_x = true;
+            }
+            if ((current_pose_[1] > observed_bounding_volume_[1][0]) && (current_pose_[1] < observed_bounding_volume_[1][1]) && (observed_bounding_volume_[1][1] - observed_bounding_volume_[1][0] > 1e-4))
+            {
+                valid_y = true;
+            }
+
+            if (valid_x && valid_y)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         bool InformedRRTStar::expandSegment(TrajectorySegment *target,
                                             std::vector<TrajectorySegment *> *new_segments)
         {
+            tree_is_reset_ = true;
             if (!target)
             {
                 // Segment selection failed
@@ -130,10 +222,16 @@ namespace active_3d_planning
             EigenTrajectoryPoint start_point = target->trajectory.back();
             EigenTrajectoryPoint goal_point;
             goal_point.position_W = connecting_sample_;
-            goal_point.setFromYaw(M_PI / 2);
+
+            // Use a completely random yaw
+            //double random_yaw = (double)rand() / (double)RAND_MAX * p_yaw_range_; //(2 * (double)rand() / (double)RAND_MAX - 1) * p_yaw_range_;
+            //goal_point.setFromYaw(random_yaw);
+
+            // Set sampled yaw
+            goal_point.setFromYaw(connecting_yaw_);
             if (!connectPoses(start_point, goal_point, &trajectory))
             {
-                //std::cout << "[EXPAND] Could not connect!\n";
+                //std::cout << "Cannot connect sample " << start_point.position_W << " goal " << goal_point.position_W << "\n";
                 return false;
             }
 
@@ -141,24 +239,51 @@ namespace active_3d_planning
             TrajectorySegment *new_segment;
             new_segment = target->spawnChild();
             new_segment->trajectory = trajectory;
-            new_segments->push_back(new_segment);
-            tree_data_.addSegment(new_segment);
-            kdtree_->addPoints(tree_data_.points.size() - 1,
-                               tree_data_.points.size() - 1);
 
             // Compute gain and update prob distribution
             planner_.getTrajectoryEvaluator().computeGain(new_segment);
+            planner_.getTrajectoryEvaluator().computeCost(new_segment, &current_pose_);
+            planner_.getTrajectoryEvaluator().computeValue(new_segment);
             new_segment->tg_visited = true;
-            if (new_segment->gain >= 50)
+            if (new_segment->gain > 0.0)
             {
                 Eigen::Vector3d useful_point = new_segment->trajectory.back().position_W;
-                updateDistribution(&useful_point, 0, true);
+                double yaw = new_segment->trajectory.back().getYaw();
+                if (wall_detected_)
+                {
+                    //updateDistribution(&useful_point, 0.0, wall_direction_, true, new_segment->gain);
+                }
+                //updateDistribution(&useful_point, yaw, 2, true, new_segment->gain);
+                // Update yaw weights
+                updateDistribution(&useful_point, yaw, 3, true, new_segment->gain);
             }
-            return true;
-            //std::cout << "[EXPAND] Added sample!\n";
+
+            // Find nearby parent candidates
+            if (p_rewire_)
+            {
+                std::vector<TrajectorySegment *> candidate_parents;
+                if (getCloseNeighbours(connecting_sample_, &candidate_parents))
+                {
+                    rewireToBestParent(new_segment, candidate_parents);
+                }
+            }
+
+            if (new_segment->parent)
+            {
+                new_segments->push_back(new_segment);
+                tree_data_.addSegment(new_segment);
+                kdtree_->addPoints(tree_data_.points.size() - 1,
+                                   tree_data_.points.size() - 1);
+
+                return true;
+            }
+            else
+            {
+                std::cout << "[EXPAND] Sample not added no parent!\n";
+            }
         }
 
-        bool InformedRRTStar::getCloseNeighbours(const Eigen::Vector3d &target_point, std::vector<Eigen::Vector3d> *close_neighbours)
+        bool InformedRRTStar::getCloseNeighbours(const Eigen::Vector3d &target_point, std::vector<TrajectorySegment *> *close_neighbours)
         {
             // Also tried radius search here but that stuff blows for some reason...
             double query_pt[3] = {target_point.x(), target_point.y(), target_point.z()};
@@ -167,20 +292,19 @@ namespace active_3d_planning
             nanoflann::KNNResultSet<double> resultSet(p_n_neighbors_);
             resultSet.init(ret_index, out_dist_sqrt);
             bool found_neighbours = kdtree_->findNeighbors(resultSet, query_pt, nanoflann::SearchParams(10));
-            std::cout << "Found new candidates " << resultSet.size() << "\n";
             bool candidate_found = false;
             if (found_neighbours)
             {
 
                 for (int i = 0; i < resultSet.size(); ++i)
                 {
-                    std::cout << "Candidate " << i << " distance " << out_dist_sqrt[i] << "\n";
+                    //std::cout << "Candidate " << i << " distance " << out_dist_sqrt[i] << "\n";
                     if (out_dist_sqrt[i] <= p_max_sample_dist_ * p_max_sample_dist_ && out_dist_sqrt[i] > 0.25)
                     {
                         candidate_found = true;
                         //std::cout << "candidates " << tree_data_.data[ret_index[i]]->trajectory.back().position_W.x() << " " << tree_data_.data[ret_index[i]]->trajectory.back().position_W.y() << " " << tree_data_.data[ret_index[i]]->trajectory.back().position_W.z() << "\n";
-                        //close_neighbours->push_back(tree_data_.data[ret_index[i]]);
-                        close_neighbours->push_back(tree_data_.points[ret_index[i]]);
+                        //close_neighbours->push_back(tree_data_.points[ret_index[i]]);
+                        close_neighbours->push_back(tree_data_.data[ret_index[i]]);
                     }
                 }
             }
@@ -190,30 +314,49 @@ namespace active_3d_planning
         bool InformedRRTStar::initializeDistribution()
         {
             //std::cout << "Initialize dist \n";
-            weights_x_.clear();
-            weights_y_.clear();
+            weights_wall_.clear();
+            //weights_y_.clear();
+            weights_z_.clear();
+            weights_yaw_.clear();
+
             for (int i = 0; i < p_prob_divisions_; i++)
             {
-                weights_x_.push_back(10.0);
-                weights_y_.push_back(10.0);
+                if (i > (p_prob_divisions_ / 3) - 3 || i < 2 * (p_prob_divisions_ / 3) + 2)
+                {
+                    weights_wall_.push_back(10.0);
+                    //weights_y_.push_back(10.0);
+                    weights_z_.push_back(10.0);
+                    weights_yaw_.push_back(10.0);
+                }
+                else
+                {
+                    weights_wall_.push_back(1000.0);
+                    weights_z_.push_back(1000.0);
+                    weights_yaw_.push_back(10.0);
+                }
             }
 
-            std::discrete_distribution<int> interm(weights_x_.begin(), weights_x_.end());
-            distribution_prob_x_ = interm;
-            distribution_prob_y_ = interm;
+            std::discrete_distribution<int> interm(weights_wall_.begin(), weights_wall_.end());
+            std::discrete_distribution<int> interm_yaw(weights_yaw_.begin(), weights_yaw_.end());
+            distribution_prob_wall_ = interm;
+            distribution_prob_z_ = interm;
+            distribution_prob_yaw_ = interm_yaw;
             return true;
         }
 
-        bool InformedRRTStar::updateDistribution(Eigen::Vector3d *sampled_point, int dim, bool higher)
+        bool InformedRRTStar::updateDistribution(Eigen::Vector3d *sampled_point, double sampled_yaw, int dim, bool higher, double gain)
         {
             //std::cout << "Update Dist" << (*sampled_point)[0] << " " << (*sampled_point)[1] << "\n";
 
-            double x_step = (local_volume_max_[0] - local_volume_min_[0]) / p_prob_divisions_;
-            double y_step = (local_volume_max_[1] - local_volume_min_[1]) / p_prob_divisions_;
+            double step = (local_volume_max_[dim] - local_volume_min_[dim]) / p_prob_divisions_;
+            //double y_step = (local_volume_max_[1] - local_volume_min_[1]) / p_prob_divisions_;
+            double z_step = (z_max_ - z_min_) / p_prob_divisions_;
+            double yaw_step = (yaw_max_ - yaw_min_) / p_prob_divisions_;
 
-            double update_weight = 0.1;
-            bool found_x = false;
-            bool found_y = false;
+            double update_weight = gain * p_prob_weight_;
+            bool found_wall = false;
+            bool found_z = false;
+            bool found_yaw = false;
 
             if (!higher)
             {
@@ -223,169 +366,51 @@ namespace active_3d_planning
             for (int i = 1; i < p_prob_divisions_; i++)
             {
                 //std::cout << "insiede loop " << update_weight << "\n";
-                if (dim == 0)
+                if (dim == 2)
                 {
-                    if ((*sampled_point)[0] <= local_volume_min_[0] + i * x_step && !found_x)
+                    if ((*sampled_point)[2] <= z_min_ + i * z_step && !found_z)
                     {
-                        weights_x_[i - 1] = weights_x_[i - 1] + update_weight;
-                        std::discrete_distribution<int> updated_dist_x(weights_x_.begin(), weights_x_.end());
-                        distribution_prob_x_ = updated_dist_x;
-                        found_x = true;
-                        break;
-                        //std::cout << "RRT distribution " << i << distribution_prob.probabilities()[0] << " " << distribution_prob.probabilities()[1] << " " << distribution_prob.probabilities()[2] << " " << distribution_prob.probabilities()[3] << " " << distribution_prob.probabilities()[4] << " " << distribution_prob.probabilities()[5] << " " << distribution_prob.probabilities()[6] << " " << distribution_prob.probabilities()[7] << " " << distribution_prob.probabilities()[8] << " " << distribution_prob.probabilities()[9] << "\n";
-                    }
-                }
-
-                if (dim == 1)
-                {
-                    //std::cout << " Comprobavions " << (*sampled_point)[1] << " " << local_volume_min_[1] << "step " << y_step << "\n";
-                    //std::cout << "Update y \n";
-                    if ((*sampled_point)[1] <= local_volume_min_[1] + i * y_step && !found_y)
-                    {
-                        weights_y_[i - 1] = weights_y_[i - 1] + update_weight;
-                        std::discrete_distribution<int> updated_dist_y(weights_y_.begin(), weights_y_.end());
-                        distribution_prob_y_ = updated_dist_y;
-                        found_y = true;
-                        //std::cout << "RRT distribution " << i << distribution_prob_y_.probabilities()[0] << " " << distribution_prob_y_.probabilities()[1] << " " << distribution_prob_y_.probabilities()[2] << " " << distribution_prob_y_.probabilities()[3] << " " << distribution_prob_y_.probabilities()[4] << " " << distribution_prob_y_.probabilities()[5] << " " << distribution_prob_y_.probabilities()[6] << " " << distribution_prob_y_.probabilities()[7] << " " << distribution_prob_y_.probabilities()[8] << " " << distribution_prob_y_.probabilities()[9] << "\n";
+                        weights_z_[i] = weights_z_[i] + update_weight;
+                        std::discrete_distribution<int> updated_dist_z(weights_z_.begin(), weights_z_.end());
+                        distribution_prob_z_ = updated_dist_z;
+                        found_z = true;
                         break;
                     }
-                    //std::cout << "Update weights Y" << weights_y_[0] << " " << weights_y_[1] << " " << weights_y_[2] << " " << weights_y_[3] << " " << weights_y_[4] << " " << weights_y_[5] << " " << weights_y_[6] << " " << weights_y_[7] << " " << weights_y_[8] << " " << weights_y_[9] << "\n";
+                    //std::cout << "Update weights Z" << weights_z_[0] << " " << weights_z_[1] << " " << weights_z_[2] << " " << weights_z_[3] << " " << weights_z_[4] << " " << weights_z_[5] << " " << weights_z_[6] << " " << weights_z_[7] << " " << weights_z_[8] << " " << weights_z_[9] << "\n";
                 }
-            }
-        }
 
-        bool InformedRRTStar::rewireSample(TrajectorySegment *new_segment, std::vector<Eigen::Vector3d> &candidates, std::vector<TrajectorySegment *> *new_segments)
-        {
-
-            std::cout << "Rewiring"
-                      << "\n";
-            EigenTrajectoryPoint start_point = new_segment->trajectory.back();
-
-            // TrajectorySegment *current = sample;
-            // while (current)
-            // {
-            //     // the connection of the new segment to the root cannot be rewired
-            //     // (loops!)
-            //     close_neighbours.erase(std::remove(close_neighbours.begin(),
-            //                                        close_neighbours.end(), current),
-            //                            close_neighbours.end());
-            //     current = current->parent;
-            // }
-            //std::cout << "Found candidates and removed some " << close_neighbours.size() << "\n";
-            //std::vector<TrajectorySegment *> new_parent = {sample};
-            std::cout << "[REWIRE] close neighbours " << candidates.size() << "\n";
-            for (int i = 0; i < candidates.size(); ++i)
-            {
-
-                //TrajectorySegment *segment = candidates[i];
-                EigenTrajectoryPointVector trajectory;
-                EigenTrajectoryPoint start = start_point; //new_segment->trajectory.back();
-                EigenTrajectoryPoint goal;
-                goal.position_W = candidates[i]; //segment->trajectory.back();
-
-                if (!connectPoses(start, goal, &trajectory))
+                if (dim == 3)
                 {
-                    std::cout << "poses not connected "
-                              << "\n";
-                    continue;
+                    if (sampled_yaw <= yaw_min_ + i * yaw_step && !found_yaw)
+                    {
+                        weights_yaw_[i] = weights_yaw_[i] + update_weight;
+                        std::discrete_distribution<int> updated_dist_yaw(weights_yaw_.begin(), weights_yaw_.end());
+                        distribution_prob_yaw_ = updated_dist_yaw;
+                        found_yaw = true;
+                        break;
+                    }
+                    //std::cout << "Update weights Z" << weights_z_[0] << " " << weights_z_[1] << " " << weights_z_[2] << " " << weights_z_[3] << " " << weights_z_[4] << " " << weights_z_[5] << " " << weights_z_[6] << " " << weights_z_[7] << " " << weights_z_[8] << " " << weights_z_[9] << "\n";
                 }
+
                 else
                 {
-                    int index = 0;
-                    TrajectorySegment *candidate_new_segment;
-                    TrajectorySegment *new_segment;
-                    if (findIndexFromPoint(candidates[i], *new_segments, candidate_new_segment))
+                    if ((*sampled_point)[dim] <= local_volume_min_[dim] + i * step && !found_wall)
                     {
-                        std::cout << "[REWIRE] found index " << candidate_new_segment->trajectory.back().position_W << "\n";
-                        //segment->parent = new_segment->parent;
-                        //segment->trajectory = new_segment->trajectory;
-                        //segment->cost = new_segment->cost;
-
-                        new_segment = candidate_new_segment->spawnChild();
-                        new_segment->trajectory = trajectory;
-
-                        //std::cout << "Traj point" << trajectory.back().position_W << "\n";
-
-                        new_segments->push_back(new_segment);
-                        tree_data_.addSegment(new_segment);
-                        kdtree_->addPoints(tree_data_.points.size() - 1,
-                                           tree_data_.points.size() - 1);
+                        weights_wall_[i] = weights_wall_[i] + update_weight;
+                        std::discrete_distribution<int> updated_dist_wall(weights_wall_.begin(), weights_wall_.end());
+                        distribution_prob_wall_ = updated_dist_wall;
+                        found_wall = true;
+                        break;
                     }
-                    std::cout << "[REWIRE] Index not found"
-                              << "\n";
                 }
-
-                //     std::cout << "connectPoses"
-                //               << "\n";
-                //Eigen::Vector3d start_pos = start.position_W;
-                //Eigen::Vector3d direction = goal.position_W - start_pos;
-                //std::cout << "start pos " << start_pos.x() << " " << start_pos.y() << " " << start_pos.z() << "\n";
-                //std::cout << "goal pos " << goal.position_W.x() << " " << goal.position_W.y() << " " << goal.position_W.z() << "\n";
-                //std::cout << " direction " << direction[0] << " " << direction[1] << " " << direction[2] << "\n";
-                //std::cout << "compute n points "<< direction.norm() <<"\n";
-                //int n_points = std::ceil(direction.norm() / planner_.getSystemConstraints().v_max * p_sampling_rate_);
-                //std::cout << "compute "<< n_points <<" " << direction.norm() << "\n";
-                //for (int i = 0; i < n_points; ++i)
-                //{
-                // if (!checkTraversable(start_pos + (double)i / (double)n_points * direction))
-                // {
-                //     return false;
-                // }
-                //}
-
-                //     // Build trajectory
-                //     n_points = std::ceil(direction.norm() / planner_.getSystemConstraints().v_max *
-                //                          p_sampling_rate_);
-                // for (int i = 0; i < n_points; ++i)
-                // {
-                //     EigenTrajectoryPoint trajectory_point;
-                //     trajectory_point.position_W =
-                //         start_pos + (double)i / (double)n_points * direction;
-                //     trajectory_point.setFromYaw(goal.getYaw());
-                //     trajectory_point.time_from_start_ns =
-                //         static_cast<int64_t>((double)i / p_sampling_rate_ * 1.0e9);
-                //     result->push_back(trajectory_point);
-                // }
-
-                //sample->parent->children.push_back(
-                //    std::unique_ptr<TrajectorySegment>(close_neighbours[i]));
-
-                //rewireToBestParent(close_neighbours[i], new_parent);
-            }
-
-            // Add to the kdtree
-            // if (sample->parent)
-            // {
-            //     tree_data_.addSegment(sample);
-            //     kdtree_->addPoints(tree_data_.points.size() - 1, tree_data_.points.size() - 1);
-            //     return true;
-            // }
-            // else
-            // {
-            //     delete sample;
-            //     return false;
-            // }
-
-            return true;
-        }
-
-        bool InformedRRTStar::findIndexFromPoint(Eigen::Vector3d point, std::vector<TrajectorySegment *> &new_segments, TrajectorySegment *segment)
-        {
-
-            std::cout << "New segments size " << new_segments.size() << "\n";
-            for (int i = 0; i < new_segments.size(); i++)
-            {
-                Eigen::Vector3d last_point = new_segments[i]->trajectory.back().position_W;
-
-                std::cout << "QUery point " << point << " segment point " << last_point << "\n";
-                if (last_point.x() == point.x() && last_point.x() == point.x() && last_point.x() == point.x())
+                auto it = max_element(std::begin(weights_yaw_), std::end(weights_yaw_));
+                if (*it > 5000)
                 {
-                    std::cout << "REWIRE Found index " << i << " last point " << last_point << "\n";
-                    segment = new_segments[i];
-                    return true;
+                    initializeDistribution();
                 }
+                //std::cout <<" Weights " << weights_wall_[0] << " " << weights_wall_[1] << " " << weights_wall_[2] << " " << weights_wall_[3] << " " << weights_wall_[4] << " " << weights_wall_[5] << " " << weights_wall_[6] << " " << weights_wall_[7] << " " << weights_wall_[8] << " " << weights_wall_[9] << "\n";
+                //std::cout << "RRT distribution " << i << distribution_prob_wall_.probabilities()[0] << " " << distribution_prob_wall_.probabilities()[1] << " " << distribution_prob_wall_.probabilities()[2] << " " << distribution_prob_wall_.probabilities()[3] << " " << distribution_prob_wall_.probabilities()[4] << " " << distribution_prob_wall_.probabilities()[5] << " " << distribution_prob_wall_.probabilities()[6] << " " << distribution_prob_wall_.probabilities()[7] << " " << distribution_prob_wall_.probabilities()[8] << " " << distribution_prob_wall_.probabilities()[9] << "\n";
             }
-            return false;
         }
 
         bool InformedRRTStar::rewireToBestParent(TrajectorySegment *segment,
@@ -393,19 +418,11 @@ namespace active_3d_planning
         {
             // Evaluate all candidate parents and store the best one in the segment
             // Goal is the end point of the segment
-            std::cout << "rewireToBestParent"
-                      << "\n";
-            EigenTrajectoryPoint goal_point = segment->trajectory.back();
-            std::cout << "goal_point"
-                      << "\n";
 
+            EigenTrajectoryPoint goal_point = segment->trajectory.back();
             // store the initial segment
             TrajectorySegment best_segment = segment->shallowCopy();
-            std::cout << "best_segment"
-                      << "\n";
             TrajectorySegment *initial_parent = segment->parent;
-            std::cout << "initial_parent"
-                      << "\n";
 
             // Find best segment
             for (int i = 0; i < candidates.size(); ++i)
@@ -415,15 +432,12 @@ namespace active_3d_planning
                 if (connectPoses(candidates[i]->trajectory.back(), goal_point,
                                  &(segment->trajectory)))
                 {
-                    std::cout << "Feasible connection"
-                              << "\n";
                     // Feasible connection: evaluate the trajectory
-                    planner_.getTrajectoryEvaluator().computeCost(segment);
-                    planner_.getTrajectoryEvaluator().computeValue(segment);
-                    std::cout << "got cost and value"
-                              << "\n";
+                    // planner_.getTrajectoryEvaluator().computeCost(segment);
+                    // planner_.getTrajectoryEvaluator().computeValue(segment);
+                    // segment->tg_visited = true;
                     if (best_segment.parent == nullptr || force_rewire ||
-                        segment->value > best_segment.value)
+                        segment->gain > best_segment.gain)
                     {
                         best_segment = segment->shallowCopy();
                         force_rewire = false;
@@ -440,8 +454,8 @@ namespace active_3d_planning
             else
             {
                 // Apply best segment and rewire
-                std::cout << "Apply best segment and rewire"
-                          << "\n";
+                //std::cout << "Apply best segment and rewire"
+                //          << "\n";
                 segment->parent = best_segment.parent;
                 segment->trajectory = best_segment.trajectory;
                 segment->cost = best_segment.cost;
@@ -454,8 +468,7 @@ namespace active_3d_planning
                 else if (initial_parent == nullptr)
                 {
                     // Found new parent
-                    std::cout << "Found new parent"
-                              << "\n";
+                    //std::cout << "Found new parent" << "\n";
                     segment->parent->children.push_back(
                         std::unique_ptr<TrajectorySegment>(segment));
                     return true;
@@ -467,8 +480,8 @@ namespace active_3d_planning
 
                         if (initial_parent->children[i].get() == segment)
                         {
-                            std::cout << " Move from existing parent"
-                                      << "\n";
+                            //std::cout << " Move from existing parent"
+                            //          << "\n";
                             // Move from existing parent
                             segment->parent->children.push_back(
                                 std::move(initial_parent->children[i]));
@@ -492,25 +505,87 @@ namespace active_3d_planning
             }
         }
 
-        bool InformedRRTStar::getSample(Eigen::Vector3d *sample_position, Eigen::Vector3d *target_position)
+        bool InformedRRTStar::getSample(Eigen::Vector3d *sampled_position, double *sampled_yaw, double *current_yaw)
         {
 
-            local_volume_min_[0] = (*target_position)[0] - bounding_volume_->x_min;
-            local_volume_max_[0] = (*target_position)[0] + bounding_volume_->x_min;
-            local_volume_min_[1] = (*target_position)[1] - bounding_volume_->y_min;
-            local_volume_max_[1] = (*target_position)[1] + bounding_volume_->y_min;
-            local_volume_min_[2] = (*target_position)[2] - bounding_volume_->z_min;
-            local_volume_max_[2] = (*target_position)[2] + bounding_volume_->z_min;
+            if (new_global_goal_ || !wall_detected_)
+            {
+                //std::cout << "Got new goal\n";
+                local_volume_min_[0] = current_pose_[0] + bounding_volume_->x_min;
+                local_volume_max_[0] = current_pose_[0] + bounding_volume_->x_max;
+                local_volume_min_[1] = current_pose_[1] + bounding_volume_->y_min;
+                local_volume_max_[1] = current_pose_[1] + bounding_volume_->y_max;
+            }
+            else
+            {
+                if (wall_direction_ == 0)
+                {
+                    //std::cout << "wall 0\n";
+                    local_volume_min_[0] = observed_bounding_volume_[0][0]; //-2.0; //(*current_pose_)[0] - bounding_volume_->x_min;
+                    local_volume_max_[0] = observed_bounding_volume_[0][1]; //2.0;  //(*current_pose_)[0] + bounding_volume_->x_min;
+                    local_volume_min_[1] = current_pose_[1] + bounding_volume_->y_min;
+                    local_volume_max_[1] = current_pose_[1] + bounding_volume_->y_max;
+                }
+                else
+                {
+                    //std::cout << "wall 1\n";
+                    local_volume_min_[0] = current_pose_[0] + bounding_volume_->x_min;
+                    local_volume_max_[0] = current_pose_[0] + bounding_volume_->x_max;
+                    local_volume_min_[1] = observed_bounding_volume_[1][0];
+                    local_volume_max_[1] = observed_bounding_volume_[1][1];
+                }
+            }
 
-            double prob_y = distribution_prob_y_(generator);
-            double prob_x = distribution_prob_x_(generator);
-            //std::cout << "PRob " << prob_y << " prob global " << (prob_y / p_prob_divisions_)<< "\n";
-            //std::cout << " Local volume " << local_volume_min_[0] << " " << local_volume_max_[0] <<  "prob "<< prob_y << "\n";
-            // sample from bounding volume (assumes box atm)
-            (*sample_position)[0] = local_volume_min_[0] + (prob_x / p_prob_divisions_) * (local_volume_max_[0] - local_volume_min_[0]);
-            (*sample_position)[1] = local_volume_min_[1] + (prob_y / p_prob_divisions_) * (local_volume_max_[1] - local_volume_min_[1]); //y_min + (double)rand() / RAND_MAX * (y_max - y_min);
-            (*sample_position)[2] = local_volume_min_[2] + (double)rand() / RAND_MAX * (local_volume_max_[2] - local_volume_min_[2]);
+            //std::cout << "Wall direction " << wall_direction_ << "wall detected " << wall_detected_ << "Local volume x : " << local_volume_min_[0] << " " << local_volume_max_[0] << " " << local_volume_min_[1] << " " << local_volume_max_[1] << "\n";
 
+            z_min_ = bounding_volume_->z_min;
+            z_max_ = bounding_volume_->z_max;
+            yaw_min_ = -p_yaw_range_;
+            yaw_max_ = p_yaw_range_;
+            Eigen::Vector2d direction_vector{global_goal_(0) - current_pose_[0], global_goal_(1) - current_pose_[1]};
+            double yaw_to_goal = atan((direction_vector(1) - 0.0) / (direction_vector(0) - 1.0));
+            if ((direction_vector(0) - 1.0) < 1e-4 && (direction_vector(1) - 0.0) > 1e-4)
+            {
+                yaw_to_goal += M_PI;
+            }
+            if ((direction_vector(0) - 1.0) < 1e-4 && (direction_vector(1) - 0.0) < 1e-4)
+            {
+                yaw_to_goal -= M_PI;
+            }
+
+            //std::cout << "Direction vector " << direction_vector << "Yaw to goal " << yaw_to_goal << "current yaw " << *current_yaw << "\n";
+            if (p_apply_prob_dist_)
+            {
+
+                double prob_wall_direction = distribution_prob_wall_(generator);
+                double prob_z = distribution_prob_z_(generator);
+                double prob_yaw = distribution_prob_yaw_(generator);
+
+                (*sampled_position)[wall_direction_] = local_volume_min_[wall_direction_] + (prob_wall_direction / p_prob_divisions_) * (local_volume_max_[wall_direction_] - local_volume_min_[wall_direction_]);
+                (*sampled_position)[!wall_direction_] = local_volume_min_[!wall_direction_] + (double)rand() / RAND_MAX * (local_volume_max_[!wall_direction_] - local_volume_min_[!wall_direction_]);
+                //(*sampled_position)[2] = z_min_ + (prob_z / p_prob_divisions_) * (z_max_ - z_min_);
+                (*sampled_position)[2] = z_min_ + (double)rand() / RAND_MAX * (z_max_ - z_min_);
+                *sampled_yaw = (yaw_to_goal - p_yaw_range_) + ((double)rand() / RAND_MAX) * (2 * p_yaw_range_);
+                //*sampled_yaw = yaw_min_ + (prob_yaw / p_prob_divisions_) * (yaw_max_ - yaw_min_);
+                if (*sampled_yaw > M_PI)
+                {
+                    *sampled_yaw = M_PI;
+                }
+            }
+            else
+            {
+
+                (*sampled_position)[0] = local_volume_min_[0] + (double)rand() / RAND_MAX * (local_volume_max_[0] - local_volume_min_[0]);
+                (*sampled_position)[1] = local_volume_min_[1] + (double)rand() / RAND_MAX * (local_volume_max_[1] - local_volume_min_[1]); //y_min + (double)rand() / RAND_MAX * (y_max - y_min);
+                (*sampled_position)[2] = z_min_ + (double)rand() / RAND_MAX * (z_max_ - z_min_);
+                *sampled_yaw = (yaw_to_goal - p_yaw_range_) + ((double)rand() / RAND_MAX) * (2 * p_yaw_range_);
+                if (*sampled_yaw > M_PI)
+                {
+                    *sampled_yaw = M_PI;
+                }
+            }
+
+            //std::cout << "Got sample " << *sampled_yaw << "\n";
             return true;
         }
 
@@ -549,6 +624,181 @@ namespace active_3d_planning
                 result->push_back(trajectory_point);
             }
             return true;
+        }
+
+        bool InformedRRTStar::rewireIntermediate(TrajectorySegment *root)
+        {
+            // After updating, try rewire all from inside out
+            std::vector<TrajectorySegment *> segments;
+
+            // order w.r.t distance
+            root->getTree(&segments);
+            std::vector<std::pair<double, TrajectorySegment *>> distance_pairs;
+
+            for (int i = 1; i < segments.size(); ++i)
+            {
+                distance_pairs.push_back(
+                    std::make_pair((segments[i]->trajectory.back().position_W -
+                                    root->trajectory.back().position_W)
+                                       .norm(),
+                                   segments[i]));
+            }
+            std::sort(distance_pairs.begin(), distance_pairs.end());
+
+            // rewire
+            std::vector<TrajectorySegment *> candidate_parents;
+            std::vector<TrajectorySegment *> safe_parents;
+            for (int i = 0; i < distance_pairs.size(); ++i)
+            {
+                candidate_parents.clear();
+                if (!getCloseNeighbours(
+                        distance_pairs[i].second->trajectory.back().position_W,
+                        &candidate_parents))
+                {
+                    continue;
+                }
+                safe_parents.clear();
+                for (int j = 0; j < candidate_parents.size(); ++j)
+                {
+                    // cannot rewire to own children (loops!)
+                    TrajectorySegment *current = candidate_parents[j];
+                    while (true)
+                    {
+                        if (current)
+                        {
+                            if (current == distance_pairs[i].second)
+                            {
+                                break;
+                            }
+                            current = current->parent;
+                        }
+                        else
+                        {
+                            safe_parents.push_back(candidate_parents[j]);
+                            break;
+                        }
+                    }
+                }
+                rewireToBestParent(distance_pairs[i].second, safe_parents);
+            }
+            return true;
+        }
+        bool InformedRRTStar::rewireRoot(TrajectorySegment *root, int *next_segment)
+        {
+            if (!p_rewire_root_)
+            {
+                return true;
+            }
+            if (!tree_is_reset_)
+            {
+                // Force reset (dangling pointers!)
+                resetTree(root);
+            }
+            tree_is_reset_ = false;
+
+            TrajectorySegment *next_root = root->children[*next_segment].get();
+
+            // Try rewiring non-next segments (to keept their branches alive)
+            std::vector<TrajectorySegment *> to_rewire;
+            root->getChildren(&to_rewire);
+            to_rewire.erase(std::remove(to_rewire.begin(), to_rewire.end(), next_root), to_rewire.end());
+            bool rewired_something = true;
+            while (rewired_something)
+            {
+                rewired_something = false;
+                for (int i = 0; i < to_rewire.size(); ++i)
+                {
+                    if (rewireRootSingle(to_rewire[i], next_root))
+                    {
+                        to_rewire.erase(to_rewire.begin() + i);
+                        rewired_something = true;
+                        break;
+                    }
+                }
+            }
+
+            // If necessary (some segments would die) reinsert old root
+            if (p_reinsert_root_ && to_rewire.size() > 0)
+            {
+                EigenTrajectoryPointVector new_trajectory;
+                if ((next_root->trajectory.back().position_W - root->trajectory.back().position_W).norm() > 0.0)
+                {
+                    // don't reinsert zero movement nodes
+                    if (connectPoses(next_root->trajectory.back(), root->trajectory.back(), &new_trajectory, false))
+                    {
+                        TrajectorySegment *reinserted_root = next_root->spawnChild();
+                        reinserted_root->trajectory = new_trajectory;
+                        // take info from old root (without value since already seen) will be
+                        // discarded/updated anyways
+                        reinserted_root->info = std::move(root->info);
+                        planner_.getTrajectoryEvaluator().computeCost(reinserted_root, &current_pose_);
+                        planner_.getTrajectoryEvaluator().computeValue(reinserted_root);
+                        tree_data_.addSegment(reinserted_root);
+                        kdtree_->addPoints(tree_data_.points.size() - 1, tree_data_.points.size() - 1);
+
+                        // rewire
+                        for (TrajectorySegment *segment : to_rewire)
+                        {
+                            for (int i = 0; i < segment->parent->children.size(); ++i)
+                            {
+                                if (segment->parent->children[i].get() == segment)
+                                {
+                                    // Move from existing parent
+                                    reinserted_root->children.push_back(
+                                        std::move(segment->parent->children[i]));
+                                    segment->parent->children.erase(segment->parent->children.begin() + i);
+                                    segment->parent = reinserted_root;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Adjust the next best value
+            for (int i = 0; i < root->children.size(); ++i)
+            {
+                if (root->children[i].get() == next_root)
+                {
+                    *next_segment = i;
+                    break;
+                }
+            }
+            return true;
+        }
+
+        bool InformedRRTStar::rewireRootSingle(TrajectorySegment *segment,
+                                               TrajectorySegment *new_root)
+        {
+            // Try rewiring a single segment
+            std::vector<TrajectorySegment *> candidate_parents;
+            if (!getCloseNeighbours(segment->trajectory.back().position_W, &candidate_parents))
+            {
+                return false;
+            }
+
+            // remove all candidates that are still connected to the root
+            std::vector<TrajectorySegment *> safe_candidates;
+            TrajectorySegment *current;
+            for (int i = 0; i < candidate_parents.size(); ++i)
+            {
+                current = candidate_parents[i];
+                while (current)
+                {
+                    if (current == new_root)
+                    {
+                        safe_candidates.push_back(candidate_parents[i]);
+                        break;
+                    }
+                    current = current->parent;
+                }
+            }
+            if (safe_candidates.empty())
+            {
+                return false;
+            }
+            // force rewire
+            return rewireToBestParent(segment, safe_candidates, true);
         }
 
         bool InformedRRTStar::resetTree(TrajectorySegment *root)
@@ -594,9 +844,13 @@ namespace active_3d_planning
             return following_evaluator_->computeGain(traj_in);
         }
 
-        bool InformedRRTStarEvaluatorAdapter::computeCost(TrajectorySegment *traj_in)
+        bool InformedRRTStarEvaluatorAdapter::getObservedBoundingBox(std::vector<Eigen::Vector2d> *bounding_box)
         {
-            return following_evaluator_->computeCost(traj_in);
+            return following_evaluator_->getObservedBoundingBox(bounding_box);
+        }
+        bool InformedRRTStarEvaluatorAdapter::computeCost(TrajectorySegment *traj_in, Eigen::Vector3d *current_position)
+        {
+            return following_evaluator_->computeCost(traj_in, current_position);
         }
 
         bool InformedRRTStarEvaluatorAdapter::computeValue(TrajectorySegment *traj_in)
@@ -604,11 +858,12 @@ namespace active_3d_planning
             return following_evaluator_->computeValue(traj_in);
         }
 
-        // int InformedRRTStarEvaluatorAdapter::selectNextBest(TrajectorySegment *traj_in) {
-        //     int next = following_evaluator_->selectNextBest(traj_in);
-        //     generator_->rewireRoot(traj_in, &next);
-        //     return next;
-        // }
+        int InformedRRTStarEvaluatorAdapter::selectNextBest(TrajectorySegment *traj_in)
+        {
+            int next = following_evaluator_->selectNextBest(traj_in);
+            generator_->rewireRoot(traj_in, &next);
+            return next;
+        }
 
         bool InformedRRTStarEvaluatorAdapter::updateSegment(TrajectorySegment *segment)
         {
@@ -623,8 +878,8 @@ namespace active_3d_planning
 
         void InformedRRTStarEvaluatorAdapter::setupFromParamMap(Module::ParamMap *param_map)
         {
-            // generator_ = dynamic_cast<trajectory_generator::InformedRRTStar *>(
-            //     planner_.getFactory().readLinkableModule("InformedRRTStarGenerator"));
+            generator_ = dynamic_cast<trajectory_generator::InformedRRTStar *>(
+                planner_.getFactory().readLinkableModule("InformedRRTStarGenerator"));
             // Create following evaluator
             std::string args; // default args extends the parent namespace
             std::string param_ns = (*param_map)["param_namespace"];

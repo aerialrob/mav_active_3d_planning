@@ -12,23 +12,24 @@
 #include <string>
 #include <vector>
 
-
-namespace active_3d_planning {
+namespace active_3d_planning
+{
 
     // Forward declaration
     class SegmentSelector;
 
     class GeneratorUpdater;
 
-
     // Base class for trajectory generation to provide uniform interface with other
     // classes
-    class TrajectoryGenerator : public Module {
+    class TrajectoryGenerator : public Module
+    {
     public:
         explicit TrajectoryGenerator(PlannerI &planner);
 
         virtual ~TrajectoryGenerator() = default;
 
+        bool new_global_goal_;
         // Expansion policy where to expand (from full tree)
         virtual bool selectSegment(TrajectorySegment **result,
                                    TrajectorySegment *root);
@@ -50,12 +51,42 @@ namespace active_3d_planning {
         extractTrajectoryToPublish(EigenTrajectoryPointVector *trajectory,
                                    const TrajectorySegment &segment);
 
+        bool setObservedBoundingBox(std::vector<Eigen::Vector2d> *bounding_box)
+        {
+            observed_bounding_volume_[0][0] = (*bounding_box)[0][0];
+            observed_bounding_volume_[0][1] = (*bounding_box)[0][1];
+            observed_bounding_volume_[1][0] = (*bounding_box)[1][0];
+            observed_bounding_volume_[1][1] = (*bounding_box)[1][1];
+            return true;
+        }
+
+        bool setGlobalGoal(Eigen::Vector3d *goal)
+        {
+            global_goal_[0] = (*goal)[0];
+            global_goal_[1] = (*goal)[1];
+            global_goal_[2] = (*goal)[2];
+            
+            if(!((last_global_goal_ - global_goal_).norm() == 0)){
+
+                last_global_goal_ = global_goal_;
+                new_global_goal_ = true;
+            }
+
+            return true;
+        }
+
         virtual void setupFromParamMap(Module::ParamMap *param_map) override;
 
     protected:
-
         // bounding box
         std::unique_ptr<BoundingVolume> bounding_volume_;
+        // Observed bounding box
+        std::vector<Eigen::Vector2d> observed_bounding_volume_;
+
+        // Global goal
+        Eigen::Vector3d global_goal_;
+        Eigen::Vector3d last_global_goal_;
+        double goal_distance_;
 
         // default modules
         std::unique_ptr<SegmentSelector> segment_selector_;
@@ -71,7 +102,8 @@ namespace active_3d_planning {
 
     // Abstract encapsulation for default/modular implementations of the
     // selectSegment method
-    class SegmentSelector : public Module {
+    class SegmentSelector : public Module
+    {
     public:
         explicit SegmentSelector(PlannerI &planner);
 
@@ -81,7 +113,8 @@ namespace active_3d_planning {
 
     // Abstract encapsulation for default/modular implementations of the
     // updateSegments method
-    class GeneratorUpdater : public Module {
+    class GeneratorUpdater : public Module
+    {
     public:
         explicit GeneratorUpdater(PlannerI &planner);
 

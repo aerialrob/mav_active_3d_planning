@@ -46,6 +46,8 @@ namespace active_3d_planning {
         // methods
         virtual void publishVisualization(const VisualizationMarkers &markers) = 0;
 
+        virtual void publishStatus(std::int16_t &status) = 0;
+
         virtual void printInfo(const std::string &text) = 0;
 
         virtual void printWarning(const std::string &text) = 0;

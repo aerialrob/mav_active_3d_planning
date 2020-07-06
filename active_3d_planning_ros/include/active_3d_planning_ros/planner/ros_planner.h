@@ -4,6 +4,7 @@
 #include "active_3d_planning_core/planner/online_planner.h"
 
 #include <nav_msgs/Odometry.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <ros/ros.h>
 #include <std_srvs/SetBool.h>
 #include <trajectory_msgs/MultiDOFJointTrajectory.h>
@@ -29,6 +30,8 @@ namespace active_3d_planning {
             // ros callbacks
             void odomCallback(const nav_msgs::Odometry &msg);
 
+            void globalGoalCallback(const geometry_msgs::PoseStamped &msg);
+
             bool runSrvCallback(std_srvs::SetBool::Request &req,
                                 std_srvs::SetBool::Response &res);
 
@@ -36,6 +39,8 @@ namespace active_3d_planning {
                                 std_srvs::SetBool::Response &res);
 
             virtual void publishVisualization(const VisualizationMarkers &markers) override;
+
+            virtual void publishStatus(std::int16_t &status) override;
 
             virtual void planningLoop() override;
 
@@ -56,8 +61,10 @@ namespace active_3d_planning {
             ::ros::NodeHandle nh_;
             ::ros::NodeHandle nh_private_;
             ::ros::Subscriber odom_sub_;
+            ::ros::Subscriber global_goal_sub_;
             ::ros::Publisher target_pub_;
             ::ros::Publisher trajectory_vis_pub_;
+            ::ros::Publisher planner_status_pub_;
             ::ros::ServiceServer run_srv_;
             ::ros::ServiceServer get_cpu_time_srv_;
 

@@ -3,23 +3,29 @@
 
 #include "active_3d_planning_core/module/trajectory_evaluator.h"
 
-namespace active_3d_planning {
-    namespace evaluator_updater {
+namespace active_3d_planning
+{
+    namespace evaluator_updater
+    {
         class YawPlanningUpdater;
     }
-    namespace trajectory_evaluator {
+    namespace trajectory_evaluator
+    {
 
-// Base class for yaw adapting evaluators. Evaluates different yaws for the
-// input trajectory and selects the best one. Evaluation and all other
-// functionalities are delegated to the folowing evaluator.
-        class YawPlanningEvaluator : public TrajectoryEvaluator {
+        // Base class for yaw adapting evaluators. Evaluates different yaws for the
+        // input trajectory and selects the best one. Evaluation and all other
+        // functionalities are delegated to the folowing evaluator.
+        class YawPlanningEvaluator : public TrajectoryEvaluator
+        {
         public:
             explicit YawPlanningEvaluator(PlannerI &planner);
 
             // Override virtual functions
             bool computeGain(TrajectorySegment *traj_in) override;
+            
+            bool getObservedBoundingBox(std::vector<Eigen::Vector2d> *bounding_box) override;
 
-            bool computeCost(TrajectorySegment *traj_in) override;
+            bool computeCost(TrajectorySegment *traj_in, Eigen::Vector3d *current_position ) override;
 
             bool computeValue(TrajectorySegment *traj_in) override;
 
@@ -52,15 +58,16 @@ namespace active_3d_planning {
                                           double target_yaw) = 0;
         };
 
-// Information struct that is assigned to segments
-        struct YawPlanningInfo : public TrajectoryInfo {
+        // Information struct that is assigned to segments
+        struct YawPlanningInfo : public TrajectoryInfo
+        {
             virtual ~YawPlanningInfo() = default;
 
             std::vector<TrajectorySegment>
-                    orientations; // Keep all orientated segment versions stored
+                orientations; // Keep all orientated segment versions stored
             int active_orientation;
         };
 
     } // namespace trajectory_evaluator
-} // namespace mav_active_3d_planning
+} // namespace active_3d_planning
 #endif // ACTIVE_3D_PLANNING_CORE_TRAJECTORY_EVALUATOR_YAW_PLANNING_EVALUATOR_H

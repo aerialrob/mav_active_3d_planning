@@ -130,7 +130,7 @@ bool Uniform::expandSegment(TrajectorySegment *target,
         }
     }
     target->children.pop_back();
-
+    //std::cout << "New segments size " << new_segments->size() << "valid " <<valid_segments << "\n";
     // Feasible solution found?
     return (valid_segments > 0);
 }

@@ -50,8 +50,8 @@ namespace active_3d_planning {
             return esdf_server_->getEsdfMapPtr()->markAsSensed(point);
         }
 
-        double VoxbloxMap::getPercentageSensed() {
-            return esdf_server_->getEsdfMapPtr()->getPercentageSensed();
+        bool VoxbloxMap::getSensedInfo(Eigen::Vector3d *info) {
+            return esdf_server_->getEsdfMapPtr()->getSensedInfo(info);
         }
 
         // get occupancy

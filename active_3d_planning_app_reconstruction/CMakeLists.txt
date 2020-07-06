@@ -16,4 +16,8 @@ cs_add_executable(eval_voxblox_node
 cs_add_executable(reconstruction_planner_node
         src/planner/reconstruction_planner_node.cpp
         )
+
+cs_add_executable(eval_rosbag
+        src/experiments/eval_rosbag.cpp
+        )
 target_link_libraries(reconstruction_planner_node ${catkin_LIBRARIES})

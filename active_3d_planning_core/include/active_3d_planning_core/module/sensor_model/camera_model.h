@@ -21,13 +21,14 @@ namespace active_3d_planning {
             virtual bool getVisibleVoxels(std::vector<Eigen::Vector3d> *result,
                                           const Eigen::Vector3d &position,
                                           const Eigen::Quaterniond &orientation,
+                                          std::vector<Eigen::Vector2d> *observed_bounding_box,
                                           int sensor_id = 0) = 0;
 
             // Return the voxel centers of all visible voxels, sampling camera poses from
             // a trajectory segment
             bool
             getVisibleVoxelsFromTrajectory(std::vector<Eigen::Vector3d> *result,
-                                           const TrajectorySegment &traj_in) override;
+                                           const TrajectorySegment &traj_in, std::vector<Eigen::Vector2d> *observed_bounding_box) override;
 
             // Display camera view bounds
             void visualizeSensorView(VisualizationMarkers *markers,

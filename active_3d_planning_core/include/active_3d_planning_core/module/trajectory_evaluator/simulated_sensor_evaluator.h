@@ -7,23 +7,29 @@
 
 #include <vector>
 
-namespace active_3d_planning {
-    namespace evaluator_updater {
+namespace active_3d_planning
+{
+    namespace evaluator_updater
+    {
         class SimulatedSensorUpdater;
     }
 
-    namespace trajectory_evaluator {
+    namespace trajectory_evaluator
+    {
 
-// Base class for a group of evaluators that simulate a sensor in the future to
-// get all visible voxels, then uses these to compute the gain. Can make use of
-// the simulated sensor updater to update the gain of views without further
-// raycasting.
-        class SimulatedSensorEvaluator : public TrajectoryEvaluator {
+        // Base class for a group of evaluators that simulate a sensor in the future to
+        // get all visible voxels, then uses these to compute the gain. Can make use of
+        // the simulated sensor updater to update the gain of views without further
+        // raycasting.
+        class SimulatedSensorEvaluator : public TrajectoryEvaluator
+        {
         public:
             explicit SimulatedSensorEvaluator(PlannerI &planner);
 
             // Override virtual functions
             bool computeGain(TrajectorySegment *traj_in) override;
+
+            bool getObservedBoundingBox(std::vector<Eigen::Vector2d> *bounding_box) override;
 
             virtual void
             visualizeTrajectoryValue(VisualizationMarkers *markers,
@@ -50,8 +56,9 @@ namespace active_3d_planning {
             virtual bool computeGainFromVisibleVoxels(TrajectorySegment *traj_in) = 0;
         };
 
-// Information struct that is assigned to segments
-        struct SimulatedSensorInfo : public TrajectoryInfo {
+        // Information struct that is assigned to segments
+        struct SimulatedSensorInfo : public TrajectoryInfo
+        {
             virtual ~SimulatedSensorInfo() {}
 
             std::vector<Eigen::Vector3d> visible_voxels;

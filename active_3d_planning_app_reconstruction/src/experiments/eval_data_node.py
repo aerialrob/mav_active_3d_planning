@@ -4,6 +4,7 @@
 import rospy
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import String
+from std_msgs.msg import Int16
 from std_srvs.srv import SetBool
 from voxblox_msgs.srv import FilePath
 # Python
@@ -65,6 +66,7 @@ class EvalData:
             self.ue_out_sub = rospy.Subscriber("ue_out_in", PointCloud2, self.ue_out_callback, queue_size=10)
             self.collision_sub = rospy.Subscriber("collision", String, self.collision_callback, queue_size=10)
             self.cpu_time_srv = rospy.ServiceProxy(self.ns_planner + "/get_cpu_time", SetBool)
+            self.status_sub = rospy.Subscriber("status", Int16, self.status_callback, queue_size=10)
 
             # Finish
             self.writelog("Data folder created at '%s'." % self.eval_directory)
@@ -157,9 +159,9 @@ class EvalData:
             self.eval_n_maps += 1
 
         # If the time limit is reached stop the simulation
-        if self.time_limit > 0.0:
-            if rospy.get_time() - self.eval_rostime_0 >= self.time_limit * 60.0:
-                self.stop_experiment("Time limit reached.")
+        #if self.time_limit > 0.0:
+            #if rospy.get_time() - self.eval_rostime_0 >= self.time_limit * 60.0:
+            #    self.stop_experiment("Time limit reached.")
 
     def eval_finish(self):
         self.eval_data_file.close()
@@ -178,6 +180,10 @@ class EvalData:
     def ue_out_callback(self, _):
         if self.evaluate:
             self.eval_n_pointclouds += 1
+
+    def status_callback(self, data):
+        if data.data < 1:
+            self.stop_experiment("Backtracking, no trajectory child.")
 
     def stop_experiment(self, reason):
         # Shutdown the node with proper logging, only required when experiment is performed

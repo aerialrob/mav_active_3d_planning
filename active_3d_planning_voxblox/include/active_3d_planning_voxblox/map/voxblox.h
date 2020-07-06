@@ -50,7 +50,7 @@ namespace active_3d_planning {
             virtual bool markAsSensed(const Eigen::Vector3d &point);
 
             // get the percentage of the voxblox mesh which have been sensed
-            virtual double getPercentageSensed();
+            virtual bool getSensedInfo(Eigen::Vector3d *info);
             
             // accessor to the server for specialized planners
             voxblox::EsdfServer &getESDFServer();

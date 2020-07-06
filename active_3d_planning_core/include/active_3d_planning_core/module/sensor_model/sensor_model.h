@@ -23,7 +23,7 @@ namespace active_3d_planning {
         // Return the voxel centers of all visible voxels
         virtual bool
         getVisibleVoxelsFromTrajectory(std::vector<Eigen::Vector3d> *result,
-                                       const TrajectorySegment &traj_in) = 0;
+                                       const TrajectorySegment &traj_in, std::vector<Eigen::Vector2d> *observed_bounding_box) = 0;
 
         // Implement this function to allow visualization of the sensing bounds
         virtual void visualizeSensorView(VisualizationMarkers *markers,

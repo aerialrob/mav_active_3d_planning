@@ -91,8 +91,11 @@ namespace active_3d_planning {
         Eigen::Vector3d current_position_;  // Current pose of the robot
         Eigen::Quaterniond current_orientation_;
         Eigen::Vector3d target_position_;   // current movement goal
+        Eigen::Vector3d global_goal_position_; // current global goal towards which to move 
+        bool received_first_goal_;
         double target_yaw_;
         bool target_reached_; // whether the goal point was reached, update based on odom input
+        bool global_goal_reached_; // whether the global goal was reached, update based on odom input
         int new_segments_; // keep track of min/max tries and segments
         int new_segment_tries_;
         bool min_new_value_reached_;
@@ -107,6 +110,9 @@ namespace active_3d_planning {
         std::ofstream perf_log_file_;  // performance file
         std::vector<double> perf_log_data_; // select, expand, gain, cost, value [cpu seconds]
         std::clock_t perf_cpu_timer_; // total time counter
+        std::ofstream traj_log_file_;    // trajectory information log file
+        std::string trajfile_;
+        std::vector<double> traj_log_data_; // gain, cost, value, nr sensed voxels
 
         // params
         bool p_verbose_;
@@ -128,6 +134,11 @@ namespace active_3d_planning {
         bool p_visualize_gain_; // true: add a colored sphere according to the gain to
         // every segment
         bool p_highlight_executed_trajectory_;  // true: print executed trajectory in bold red
+        bool p_manual_;
+        std::string p_wp_file_;
+
+        EigenTrajectoryPointVector wp_list_;
+        int wp_id_;
 
         // methods
         virtual void initializePlanning();
@@ -157,6 +168,9 @@ namespace active_3d_planning {
         void updateGeneratorStep(TrajectorySegment *target);
 
         void updateEvaluatorStep(TrajectorySegment *target);
+
+	// Load WPs to be followed for the manual mission
+        bool loadWPs();
 
     };
 } // namespace active_3d_planning

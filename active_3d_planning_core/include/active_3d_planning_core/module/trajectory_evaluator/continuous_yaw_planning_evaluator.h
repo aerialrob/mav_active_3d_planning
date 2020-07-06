@@ -3,23 +3,29 @@
 
 #include "active_3d_planning_core/module/trajectory_evaluator/yaw_planning_evaluator.h"
 
-namespace active_3d_planning {
-    namespace evaluator_updater {
+namespace active_3d_planning
+{
+    namespace evaluator_updater
+    {
         class YawPlanningUpdater;
     }
-    namespace trajectory_evaluator {
+    namespace trajectory_evaluator
+    {
 
-// Split full yaw into sections and find best orientation by conbining sections.
-// From this paper: https://ieeexplore.ieee.org/abstract/document/8594502
-// Samples yaws uniformly and assigns the same yaw to all trajectory points.
-// Make sure the horizontal FOV of the sensor model matches the spacing of the
-// evaluator
-        class ContinuousYawPlanningEvaluator : public YawPlanningEvaluator {
+        // Split full yaw into sections and find best orientation by conbining sections.
+        // From this paper: https://ieeexplore.ieee.org/abstract/document/8594502
+        // Samples yaws uniformly and assigns the same yaw to all trajectory points.
+        // Make sure the horizontal FOV of the sensor model matches the spacing of the
+        // evaluator
+        class ContinuousYawPlanningEvaluator : public YawPlanningEvaluator
+        {
         public:
             explicit ContinuousYawPlanningEvaluator(PlannerI &planner);
 
             // Override virtual functions
             bool computeGain(TrajectorySegment *traj_in) override;
+
+            bool getObservedBoundingBox(std::vector<Eigen::Vector2d> *bounding_box) override;
 
             bool updateSegment(TrajectorySegment *segment) override;
 
@@ -34,7 +40,7 @@ namespace active_3d_planning {
             // factory access
 
             static ModuleFactoryRegistry::Registration<ContinuousYawPlanningEvaluator>
-                    registration;
+                registration;
 
             // params
             bool p_visualize_followup_; // true: also visualize the gain of the best
@@ -42,7 +48,7 @@ namespace active_3d_planning {
             int p_n_sections_fov_;  // Number of sections visible, i.e. fov/section_width
             double p_update_range_; // Update only gains within this distance (use 0.0 to
             // check all)
-            double p_update_gain_;  // Update only gains within above this
+            double p_update_gain_;            // Update only gains within above this
             bool p_update_sections_separate_; // True: check for each section, false:
             // check for whole segment
 

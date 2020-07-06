@@ -46,7 +46,7 @@ namespace active_3d_planning {
 
         bool IterativeRayCasterLidar::getVisibleVoxels(
                 std::vector<Eigen::Vector3d> *result, const Eigen::Vector3d &position,
-                const Eigen::Quaterniond &orientation, int sensor_id) {
+                const Eigen::Quaterniond &orientation, std::vector<Eigen::Vector2d> *observed_bounding_box , int sensor_id){
             // Setup ray table (contains at which segment to start, -1 if occluded
             ray_table_ = Eigen::ArrayXXi::Zero(c_res_x_, c_res_y_);
 

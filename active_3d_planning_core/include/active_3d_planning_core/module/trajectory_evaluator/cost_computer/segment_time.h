@@ -11,7 +11,9 @@ namespace active_3d_planning {
         public:
             explicit SegmentTime(PlannerI &planner);
 
-            bool computeCost(TrajectorySegment *traj_in) override;
+            bool computeCost(TrajectorySegment *traj_in, Eigen::Vector3d *current_position ) override;
+
+            bool setGlobalGoal(Eigen::Vector3d *goal) override;
 
             void setupFromParamMap(Module::ParamMap *param_map) override;
 
@@ -22,6 +24,17 @@ namespace active_3d_planning {
             bool p_accumulate_; // True: Use total time
             bool p_altitude_change_; // True: penalize the altitude change
             bool p_yaw_change_; // True: penalize the yaw change
+            bool p_distance_to_goal_; //True penalize distance to goal
+            double p_time_weight_; 
+            double start_time_;
+            double p_time_limit_; // simulation limit time
+            double p_exp_mult_; // term which multiplies the decaying exp function
+            double p_exp_div_;  // term which divedes the remaining time inside the exp function
+
+            // var
+            Eigen::Vector3d global_goal_;
+            Eigen::Vector3d last_global_goal_;
+            bool new_global_goal_;
         };
 
     } // namespace cost_computer

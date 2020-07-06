@@ -15,7 +15,7 @@ namespace active_3d_planning
         CameraModel::CameraModel(PlannerI &planner) : SensorModel(planner) {}
 
         bool CameraModel::getVisibleVoxelsFromTrajectory(
-            std::vector<Eigen::Vector3d> *result, const TrajectorySegment &traj_in)
+            std::vector<Eigen::Vector3d> *result, const TrajectorySegment &traj_in, std::vector<Eigen::Vector2d> *observed_bounding_box )
         {
             // Sample camera poses through trajectory
             std::vector<int> indices;
@@ -36,13 +36,13 @@ namespace active_3d_planning
                     // Get visible voxels
                     if (!p_test_)
                     {
-                        getVisibleVoxels(result, position, orientation, u);
+                        getVisibleVoxels(result, position, orientation, observed_bounding_box, u);
                     }
                     else
                     {
                         // Time the performance of raycasters
                         auto start_time = std::chrono::high_resolution_clock::now();
-                        getVisibleVoxels(result, position, orientation, u);
+                        getVisibleVoxels(result, position, orientation, observed_bounding_box, u);
                         auto end_time = std::chrono::high_resolution_clock::now();
                         time_count_.push_back(
                             (double)((end_time - start_time) / std::chrono::milliseconds(1)));

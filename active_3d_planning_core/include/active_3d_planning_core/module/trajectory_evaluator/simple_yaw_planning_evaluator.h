@@ -3,15 +3,19 @@
 
 #include "active_3d_planning_core/module/trajectory_evaluator/yaw_planning_evaluator.h"
 
-namespace active_3d_planning {
-    namespace evaluator_updater {
+namespace active_3d_planning
+{
+    namespace evaluator_updater
+    {
         class YawPlanningUpdater;
     }
-    namespace trajectory_evaluator {
+    namespace trajectory_evaluator
+    {
 
-// Simple evaluator. Samples yaws uniformly and assigns the same yaw to all
-// trajectory points.
-        class SimpleYawPlanningEvaluator : public YawPlanningEvaluator {
+        // Simple evaluator. Samples yaws uniformly and assigns the same yaw to all
+        // trajectory points.
+        class SimpleYawPlanningEvaluator : public YawPlanningEvaluator
+        {
         public:
             explicit SimpleYawPlanningEvaluator(PlannerI &planner);
 
@@ -25,7 +29,7 @@ namespace active_3d_planning {
             friend class evaluator_updater::YawPlanningUpdater;
 
             static ModuleFactoryRegistry::Registration<SimpleYawPlanningEvaluator>
-                    registration;
+                registration;
 
             // params
             bool p_visualize_followup_; // true: also visualize the gain of the best

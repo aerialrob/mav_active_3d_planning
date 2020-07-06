@@ -9,18 +9,18 @@ window.title("Active Planning Testing GUI")
 window.geometry('500x300')
 
 # Set up service calls
-pos_hold_service_topic = "/penguin/back_to_position_hold"
-toggle_service_topic = "/planner_node/toggle_running"
+#pos_hold_service_topic = "/penguin/back_to_position_hold"
+toggle_service_topic = "/planner/planner_node/toggle_running"
 try:
     rospy.init_node("active_planning_gui")
-    rospy.wait_for_service(pos_hold_service_topic, timeout=0.5)
+    #rospy.wait_for_service(pos_hold_service_topic, timeout=0.5)
     rospy.wait_for_service(toggle_service_topic, timeout=0.5)
 except:
     rospy.logwarn("Services not available")
     exit(1)
 
-pos_hold_service = rospy.ServiceProxy(pos_hold_service_topic,
-                                      Empty)
+# pos_hold_service = rospy.ServiceProxy(pos_hold_service_topic,
+#                                       Empty)
 
 toggle_service = rospy.ServiceProxy(toggle_service_topic,
                                     SetBool)

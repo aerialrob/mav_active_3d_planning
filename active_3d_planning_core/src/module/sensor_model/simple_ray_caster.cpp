@@ -30,6 +30,7 @@ void SimpleRayCaster::setupFromParamMap(Module::ParamMap *param_map) {
 bool SimpleRayCaster::getVisibleVoxels(std::vector<Eigen::Vector3d> *result,
                                        const Eigen::Vector3d &position,
                                        const Eigen::Quaterniond &orientation,
+                                       std::vector<Eigen::Vector2d> *observed_bounding_box,
                                        int sensor_id) {
   // Naive ray-casting
   Eigen::Vector3d camera_direction;

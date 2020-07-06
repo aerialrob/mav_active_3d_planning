@@ -25,7 +25,7 @@ namespace active_3d_planning {
         virtual bool isObserved(const Eigen::Vector3d &point) = 0;
 
         // get the percentage of the voxblox mesh which have been sensed
-        virtual double getPercentageSensed() = 0;
+        virtual bool getSensedInfo(Eigen::Vector3d *info) = 0;
     };
 
 } // namespace active_3d_planning

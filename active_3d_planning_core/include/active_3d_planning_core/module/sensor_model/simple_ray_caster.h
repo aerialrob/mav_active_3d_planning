@@ -20,6 +20,7 @@ namespace active_3d_planning {
             bool getVisibleVoxels(std::vector<Eigen::Vector3d> *result,
                                   const Eigen::Vector3d &position,
                                   const Eigen::Quaterniond &orientation,
+                                  std::vector<Eigen::Vector2d> *observed_bounding_box,
                                   int sensor_id ) override;
 
             void setupFromParamMap(Module::ParamMap *param_map) override;

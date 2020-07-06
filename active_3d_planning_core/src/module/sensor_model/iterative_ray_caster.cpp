@@ -60,7 +60,7 @@ namespace active_3d_planning
 
         bool IterativeRayCaster::getVisibleVoxels(
             std::vector<Eigen::Vector3d> *result, const Eigen::Vector3d &position,
-            const Eigen::Quaterniond &orientation, int sensor_id)
+            const Eigen::Quaterniond &orientation, std::vector<Eigen::Vector2d> *observed_bounding_box, int sensor_id)
         {
             // Setup ray table (contains at which segment to start, -1 if occluded
             c_res_x_ = c_res_x_list_[sensor_id];
@@ -79,6 +79,7 @@ namespace active_3d_planning
             double distance;
             bool cast_ray;
             double map_distance;
+            double x_min, x_max;
             for (int i = 0; i < c_res_x_; ++i)
             {
                 for (int j = 0; j < c_res_y_; ++j)
@@ -108,13 +109,34 @@ namespace active_3d_planning
                                 // Occlusion, mark neighboring rays as occluded
                                 markNeighboringRays(i, j, current_segment, -1);
                                 cast_ray = false;
+                                map_->getVoxelCenter(&voxel_center, current_position);
+                                result->push_back(voxel_center);
+
+                                // Find X coordinate min and max from surface observed voxels 
+                                if (current_position[0] < (*observed_bounding_box)[0][0])
+                                {
+                                    (*observed_bounding_box)[0][0] = current_position[0];
+                                }
+                                else if (current_position[0] > (*observed_bounding_box)[0][1])
+                                {
+                                    (*observed_bounding_box)[0][1] = current_position[0];
+                                }
+                                
+                                // Find Y coordinate min and max from surface observed voxels 
+                                if (current_position[1] < (*observed_bounding_box)[1][0])
+                                {
+                                    (*observed_bounding_box)[1][0] = current_position[1];
+                                }
+                                else if (current_position[1] > (*observed_bounding_box)[1][1])
+                                {
+                                    (*observed_bounding_box)[1][1] = current_position[1];
+                                }
+
                                 break;
                             }
 
                             // Add point (duplicates are handled in
                             // CameraModel::getVisibleVoxelsFromTrajectory)
-                            map_->getVoxelCenter(&voxel_center, current_position);
-                            result->push_back(voxel_center);
                         }
                         if (cast_ray)
                         {
@@ -132,6 +154,8 @@ namespace active_3d_planning
                     }
                 }
             }
+
+            //std::cout << "Found z bounds " << (*observed_bounding_box)[1][0] << " "<<  (*observed_bounding_box)[1][1] << "\n";
             return true;
         }
 

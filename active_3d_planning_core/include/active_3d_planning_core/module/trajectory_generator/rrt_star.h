@@ -87,7 +87,9 @@ namespace active_3d_planning {
             // Override virtual functions
             bool computeGain(TrajectorySegment *traj_in) override;
 
-            bool computeCost(TrajectorySegment *traj_in) override;
+            bool computeCost(TrajectorySegment *traj_in, Eigen::Vector3d *current_position) override;
+
+            bool getObservedBoundingBox(std::vector<Eigen::Vector2d> *bounding_box) override;
 
             bool computeValue(TrajectorySegment *traj_in) override;
 

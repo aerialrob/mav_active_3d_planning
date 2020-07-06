@@ -40,6 +40,7 @@ namespace active_3d_planning
 
             // setup parent
             TrajectoryEvaluator::setupFromParamMap(param_map);
+            TrajectoryEvaluator::initializeObservedVolume();
         }
 
         bool SimulatedSensorEvaluator::computeGain(TrajectorySegment *traj_in)
@@ -52,8 +53,7 @@ namespace active_3d_planning
             }
 
             std::vector<Eigen::Vector3d> new_voxels;
-            //std::cout << "Simulated sensor compute gain \n";
-            sensor_model_->getVisibleVoxelsFromTrajectory(&new_voxels, *traj_in);
+            sensor_model_->getVisibleVoxelsFromTrajectory(&new_voxels, *traj_in, &observed_bounding_volume_);
             // Check for interesting bounding box
             if (bounding_volume_->is_setup)
             {
@@ -134,6 +134,14 @@ namespace active_3d_planning
             {
                 sensor_model_->visualizeSensorView(markers, trajectory);
             }
+        }
+
+        bool SimulatedSensorEvaluator::getObservedBoundingBox(std::vector<Eigen::Vector2d> *bounding_box)
+        {
+            bounding_box->push_back(observed_bounding_volume_[0]); 
+            bounding_box->push_back(observed_bounding_volume_[1]); 
+
+            return true;
         }
 
     } // namespace trajectory_evaluator

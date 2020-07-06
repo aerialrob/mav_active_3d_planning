@@ -195,10 +195,9 @@ namespace active_3d_planning
                     }
                     else
                     {
-                        double frac =
-                            (value - p_min_impact_factor_) / (1.0 - p_min_impact_factor_);
-                        color.r = 1.0; //std::min((0.5 - frac) * 2.0 + 1.0, 1.0);
-                        color.g = 1.0; //std::min((frac - 0.5) * 2.0 + 1.0, 1.0);
+          
+                        color.r = 1.0; 
+                        color.g = 1.0; 
                         color.b = 1.0;
                         color.a = 0.5;
                     }

@@ -16,6 +16,7 @@ cs_add_library(${PROJECT_NAME}
         src/module/back_tracker/feasible_rotate_reverse.cpp
         src/module/trajectory_generator/feasible_rrt_star.cpp
         src/module/trajectory_generator/feasible_rrt.cpp
+        src/module/trajectory_generator/feasible_informed_rrt_star.cpp
         src/module/trajectory_generator/random_mav_trajectory.cpp
         src/tools/linear_mav_trajectory_generator.cpp
         src/initialization/mav_package.cpp

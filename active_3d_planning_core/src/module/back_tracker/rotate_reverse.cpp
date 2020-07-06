@@ -45,6 +45,7 @@ namespace active_3d_planning {
                 // Maximum rotations in place reached, time to reverse last segment
                 if (stack_.empty()) {
                     // Nothing to reverse: rotate again
+                    std::cout << "Backtracker nothing to reverse " << "\n";
                     return rotate(target);
                 } else {
                     // Reverse last trajectory
