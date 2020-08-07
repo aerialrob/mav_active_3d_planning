@@ -22,6 +22,8 @@ namespace active_3d_planning {
             // check collision for a single pose
             virtual bool isTraversable(const Eigen::Vector3d &position, const Eigen::Quaterniond &orientation) override;
 
+            virtual double getDistanceToObstacle(const Eigen::Vector3d &position, const Eigen::Quaterniond &orientation) override;
+
             // check whether point is part of the map
             virtual bool isObserved(const Eigen::Vector3d &point) override;
 

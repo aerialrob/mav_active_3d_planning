@@ -400,8 +400,10 @@ namespace active_3d_planning
 
         // Update tree
         // recursive tree pass from root to leaves
+        //std::cout << "[Online planner] updateGeneratorStep " << current_segment_.get() << "\n";
+
         updateGeneratorStep(current_segment_.get());
-        //std::cout << "[Online planner] updateGeneratorStep \n";
+        
         if (p_log_performance_)
         {
             perf_uptg = (double)(std::clock() - timer) / CLOCKS_PER_SEC;
@@ -668,29 +670,74 @@ namespace active_3d_planning
                 msg.scale.z() = 0.15;
                 msg.position = trajectories[i]->trajectory.back().position_W;
 
-                // Color according to relative value (blue when indifferent)
-                if (trajectories[i]->value < 0)
+                // Visualize distance to object
+                double distance = map_->getDistanceToObstacle(trajectories[i]->trajectory.back().position_W);
+                if (distance <= 7.0 && distance >= 5.0)
+                {
+                    msg.color.r = 0.0;
+                    msg.color.g = 1.0;
+                    msg.color.b = 0.0;
+                }
+
+                if (distance < 5.0 && distance >= 4.0)
+                {
+                    msg.color.r = 0.0;
+                    msg.color.g = 0.5;
+                    msg.color.b = 0.5;
+                }
+
+                if (distance < 4.0 && distance >= 3.0)
+                {
+                    msg.color.r = 0.0;
+                    msg.color.g = 0.0;
+                    msg.color.b = 1.0;
+                }
+
+                if (distance < 3.0 && distance >= 2.0)
                 {
                     msg.color.r = 0.5;
                     msg.color.g = 0.0;
                     msg.color.b = 0.5;
                 }
-                else
+
+                if (distance < 2.0 && distance >= 1.5)
                 {
-                    if (min_value != max_value)
-                    {
-                        double frac = (trajectories[i]->value - min_value) / (max_value - min_value);
-                        msg.color.r = std::min((0.5 - frac) * 2.0 + 1.0, 1.0);
-                        msg.color.g = std::min((frac - 0.5) * 2.0 + 1.0, 1.0);
-                        msg.color.b = 0.0;
-                    }
-                    else
-                    {
-                        msg.color.r = 0.3;
-                        msg.color.g = 0.3;
-                        msg.color.b = 1.0;
-                    }
+                    msg.color.r = 0.5;
+                    msg.color.g = 0.5;
+                    msg.color.b = 0.0;
                 }
+
+                if (distance < 1.5)
+                {
+                    msg.color.r = 1.0;
+                    msg.color.g = 0.0;
+                    msg.color.b = 0.0;
+                }
+
+
+                // Color according to relative value (blue when indifferent)
+                // if (trajectories[i]->value < 0)
+                // {
+                //     msg.color.r = 0.5;
+                //     msg.color.g = 0.0;
+                //     msg.color.b = 0.5;
+                // }
+                // else
+                // {
+                //     if (min_value != max_value)
+                //     {
+                //         double frac = (trajectories[i]->value - min_value) / (max_value - min_value);
+                //         msg.color.r = std::min((0.5 - frac) * 2.0 + 1.0, 1.0);
+                //         msg.color.g = std::min((frac - 0.5) * 2.0 + 1.0, 1.0);
+                //         msg.color.b = 0.0;
+                //     }
+                //     else
+                //     {
+                //         msg.color.r = 0.3;
+                //         msg.color.g = 0.3;
+                //         msg.color.b = 1.0;
+                //     }
+                // }
 
                 msg.color.a = 1.0;
                 gain_markers.addMarker(msg);
@@ -710,9 +757,11 @@ namespace active_3d_planning
             msg.color.a = 1.0;
             msg.position = trajectories[i]->trajectory.back().position_W;
             std::stringstream stream;
-            stream << std::fixed << std::setprecision(2) << trajectories[i]->gain << "/"
-                   << std::fixed << std::setprecision(2) << trajectories[i]->cost << "/"
-                   << std::fixed << std::setprecision(2) << trajectories[i]->value;
+            // stream << std::fixed << std::setprecision(2) << trajectories[i]->gain << "/"
+            //        << std::fixed << std::setprecision(2) << trajectories[i]->cost << "/"
+            //        << std::fixed << std::setprecision(2) << trajectories[i]->value;
+            double distance = map_->getDistanceToObstacle(trajectories[i]->trajectory.back().position_W);
+            stream << std::fixed << std::setprecision(2) << distance;
             msg.text = stream.str();
             msg.action = VisualizationMarker::OVERWRITE;
             text_markers.addMarker(msg);
@@ -848,6 +897,7 @@ namespace active_3d_planning
         {
             updateGeneratorStep(target->children[i].get());
         }
+        //std::cout << "Update Generator step j " << j << "children size " << target->children.size() << "\n";
     }
 
     void OnlinePlanner::updateEvaluatorStep(TrajectorySegment *target)

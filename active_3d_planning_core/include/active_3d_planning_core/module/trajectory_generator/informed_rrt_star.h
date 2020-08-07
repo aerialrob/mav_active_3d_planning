@@ -121,6 +121,7 @@ namespace active_3d_planning
             bool last_wall_direction_;
             Eigen::Vector3d connecting_sample_;
             double connecting_yaw_;
+            double yaw_to_goal_;
 
             // kdtree
             std::unique_ptr<KDTree> kdtree_;

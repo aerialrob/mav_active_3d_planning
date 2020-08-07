@@ -29,8 +29,8 @@ map:
 
 # System constraints
 system_constraints:
-  v_max: 1.0
-  a_max: 1.0
+  v_max: 1.5
+  a_max: 1.5
   yaw_rate_max: 1.6
   yaw_accel_max: 1.6
   collision_radius: 1.5
@@ -41,7 +41,7 @@ trajectory_generator:
   bounding_volume_args: "/local_bounding_volume"
   clearing_radius: 0.0
 
-  # type: "RRTStar"
+  # type: "RRT"
   # all_semgents_feasible: true
   # crop_segments: false
   # crop_margin: 0.3
@@ -62,7 +62,7 @@ trajectory_generator:
   # n_neighbors: 20
 
   type: "FeasibleInformedRRTStar"
-  all_segments_feasible: false
+  all_segments_feasible: FeasibleInformedRRTStar
   #num_samples: 1
   sampling_rate: 20.0
   max_sample_dist: 3.0
@@ -73,8 +73,8 @@ trajectory_generator:
   reinsert_root: true
   n_neighbors: 50
   yaw_range: 0.0 #0.5235 #30 deg
-  maximum_tries: 50
-  prob_divisions: 30.0
+  maximum_tries: 100
+  prob_divisions: 50.0
   apply_prob_dist: true
   prob_weight: 0.1
   tunnel_width: 9.0
@@ -180,8 +180,8 @@ trajectory_evaluator:
     penalize_distance_to_goal: true
     accumulate: false
     time_weight: 5.0
-    time_limit: 10
-    exp_mult: 100
+    time_limit: 1
+    exp_mult: 1
     exp_div: 5
     # How to compute the values
   value_computer:

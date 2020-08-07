@@ -37,6 +37,15 @@ namespace active_3d_planning {
             return false;
         }
 
+        double VoxbloxMap::getDistanceToObstacle(const Eigen::Vector3d &position, const Eigen::Quaterniond &orientation){
+            double distance = 0.0;
+            if (esdf_server_->getEsdfMapPtr()->getDistanceAtPosition(position, &distance)) {
+                // This means the voxel is observed
+                return distance;
+            }
+            return -1.0;
+        }
+
         bool VoxbloxMap::isObserved(const Eigen::Vector3d &point) {
             return esdf_server_->getEsdfMapPtr()->isObserved(point);
         }

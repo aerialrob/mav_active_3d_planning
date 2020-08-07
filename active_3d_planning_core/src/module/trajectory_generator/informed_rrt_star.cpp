@@ -536,24 +536,29 @@ namespace active_3d_planning
                 }
             }
 
-            //std::cout << "Wall direction " << wall_direction_ << "wall detected " << wall_detected_ << "Local volume x : " << local_volume_min_[0] << " " << local_volume_max_[0] << " " << local_volume_min_[1] << " " << local_volume_max_[1] << "\n";
+            //Set the yaw towards the goal
+            if (new_global_goal_)
+            {
+                Eigen::Vector2d direction_vector{global_goal_(0) - current_pose_[0], global_goal_(1) - current_pose_[1]};
+                yaw_to_goal_ = atan((direction_vector(1) - 0.0) / (direction_vector(0) - 1.0));
+                if ((direction_vector(0) - 1.0) < 1e-4 && (direction_vector(1) - 0.0) > 1e-4)
+                {
+                    yaw_to_goal_ += M_PI;
+                }
+                if ((direction_vector(0) - 1.0) < 1e-4 && (direction_vector(1) - 0.0) < 1e-4)
+                {
+                    yaw_to_goal_ -= M_PI;
+                }
+            }
+
+            std::cout << "Wall direction " << wall_direction_ << "wall detected " << wall_detected_ << "Local volume x : " << local_volume_min_[0] << " " << local_volume_max_[0] << " " << local_volume_min_[1] << " " << local_volume_max_[1] << "\n";
 
             z_min_ = bounding_volume_->z_min;
             z_max_ = bounding_volume_->z_max;
             yaw_min_ = -p_yaw_range_;
             yaw_max_ = p_yaw_range_;
-            Eigen::Vector2d direction_vector{global_goal_(0) - current_pose_[0], global_goal_(1) - current_pose_[1]};
-            double yaw_to_goal = atan((direction_vector(1) - 0.0) / (direction_vector(0) - 1.0));
-            if ((direction_vector(0) - 1.0) < 1e-4 && (direction_vector(1) - 0.0) > 1e-4)
-            {
-                yaw_to_goal += M_PI;
-            }
-            if ((direction_vector(0) - 1.0) < 1e-4 && (direction_vector(1) - 0.0) < 1e-4)
-            {
-                yaw_to_goal -= M_PI;
-            }
 
-            //std::cout << "Direction vector " << direction_vector << "Yaw to goal " << yaw_to_goal << "current yaw " << *current_yaw << "\n";
+            //std::cout << "Yaw to goal " << yaw_to_goal_ << "current yaw " << *current_yaw << "\n";
             if (p_apply_prob_dist_)
             {
 
@@ -565,7 +570,8 @@ namespace active_3d_planning
                 (*sampled_position)[!wall_direction_] = local_volume_min_[!wall_direction_] + (double)rand() / RAND_MAX * (local_volume_max_[!wall_direction_] - local_volume_min_[!wall_direction_]);
                 //(*sampled_position)[2] = z_min_ + (prob_z / p_prob_divisions_) * (z_max_ - z_min_);
                 (*sampled_position)[2] = z_min_ + (double)rand() / RAND_MAX * (z_max_ - z_min_);
-                *sampled_yaw = (yaw_to_goal - p_yaw_range_) + ((double)rand() / RAND_MAX) * (2 * p_yaw_range_);
+                //*sampled_yaw = (yaw_to_goal - p_yaw_range_) + ((double)rand() / RAND_MAX) * (2 * p_yaw_range_);
+                *sampled_yaw = yaw_to_goal_;
                 //*sampled_yaw = yaw_min_ + (prob_yaw / p_prob_divisions_) * (yaw_max_ - yaw_min_);
                 if (*sampled_yaw > M_PI)
                 {
@@ -578,7 +584,8 @@ namespace active_3d_planning
                 (*sampled_position)[0] = local_volume_min_[0] + (double)rand() / RAND_MAX * (local_volume_max_[0] - local_volume_min_[0]);
                 (*sampled_position)[1] = local_volume_min_[1] + (double)rand() / RAND_MAX * (local_volume_max_[1] - local_volume_min_[1]); //y_min + (double)rand() / RAND_MAX * (y_max - y_min);
                 (*sampled_position)[2] = z_min_ + (double)rand() / RAND_MAX * (z_max_ - z_min_);
-                *sampled_yaw = (yaw_to_goal - p_yaw_range_) + ((double)rand() / RAND_MAX) * (2 * p_yaw_range_);
+                //*sampled_yaw = (yaw_to_goal - p_yaw_range_) + ((double)rand() / RAND_MAX) * (2 * p_yaw_range_);
+                *sampled_yaw = yaw_to_goal_;
                 if (*sampled_yaw > M_PI)
                 {
                     *sampled_yaw = M_PI;

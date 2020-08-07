@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # *** Params ***
-n_experiments=8
+n_experiments=7
 n_repetitions=3
 
 # Setting directories
@@ -12,7 +12,7 @@ type=".yaml"
 
 clear_voxblox_maps=true		# Irreversibly remove maps after evaluation to save disk space
 
-for (( e=8; e<=n_experiments; e++ ))
+for (( e=1; e<=n_experiments; e++ ))
 do  
     target_dir=$data_dir$e
     echo "Starting experiment ${e} series of ${n_repetitions} runs at '${target_dir}'!"
@@ -45,7 +45,9 @@ do
         echo "Remove some files..."
         rm $bag_file
         voxblox_maps=$bag_dir"/voxblox_maps"
+        meshes=$bag_dir"/meshes"
         rm -r $voxblox_maps
+        rm -r $meshes
         
         echo "Sleeping 1m"
         sleep 1m

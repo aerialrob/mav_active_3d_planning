@@ -1,0 +1,49 @@
+# Experiment (Urban Tunnel) specific parameters
+
+# Bounding boxes (in initialization frame, relative to PlayerStart)
+# map_bounding_volume:
+#   x_min: -200.0
+#   x_max: 0
+#   y_min: 0
+#   y_max: 100
+#   z_min: 0.0
+#   z_max: 13.5
+
+target_bounding_volume:
+  x_min: -50.0
+  x_max: 50.0
+  y_min: -5.0
+  y_max: 5.0
+  z_min: 0.5
+  z_max: 1.5
+
+map_bounding_volume:
+  x_min: -50.0
+  x_max: 50.0
+  y_min: -5.0
+  y_max: 5.0
+  z_min: 0.5
+  z_max: 1.5
+
+evaluation_bounding_volum:
+  x_min: -20.0
+  x_max: 20.0
+  y_min: -20.0
+  y_max: 20.0
+  z_min: 0.5
+  z_max: 1.5
+
+local_bounding_volume:
+  x_min: -20.0
+  x_max: 20.0
+  y_min: -20.0
+  y_max: 20.0
+  z_min: 0.5   #these values are absolute
+  z_max: 1.5    #these values are absolute
+
+# System Constraints
+planner:
+  system_constraints:
+    v_max: 1.5
+    a_max: 1.5
+    yaw_rate_max: 1.57
